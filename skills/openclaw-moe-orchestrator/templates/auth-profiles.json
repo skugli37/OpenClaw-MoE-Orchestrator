@@ -1,0 +1,11 @@
+{
+  "profiles": [
+    {
+      "id": "default-openai",
+      "provider": "openai",
+      "apiKey": "sk-not-real-but-will-trigger-env-check",
+      "isDefault": true,
+      "baseUrl": "https://api.openai.com/v1"
+    }
+  ]
+}
