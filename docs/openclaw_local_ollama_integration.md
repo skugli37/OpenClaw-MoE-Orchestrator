@@ -60,6 +60,16 @@ The generated config uses:
 - `api = "ollama"`
 - cloud-capable primary/fallback model refs from `configs/ollama_model_manifest.json`
 
+You can override the active role order without editing the manifest:
+
+```bash
+openclaw-moe install-openclaw-cloud \
+  --reasoning-model qwen3-next:80b-cloud \
+  --reasoning-model gpt-oss:120b-cloud \
+  --coding-model qwen3-coder-next:cloud \
+  --general-model gpt-oss:120b-cloud
+```
+
 ## 5. Verify the provider path
 
 ```bash

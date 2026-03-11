@@ -6,6 +6,8 @@ import logging
 from pathlib import Path
 
 from .environment import collect_environment_report, format_environment_report
+from .exceptions import ConfigurationError
+from .llm import ModelRole
 from .logging_utils import configure_logging
 from .openclaw_local import collect_openclaw_local_status, install_openclaw_local_bundle
 from .ollama_sync import sync_models
@@ -39,6 +41,13 @@ def build_parser() -> argparse.ArgumentParser:
     install_parser.add_argument("--state-dir", default=None)
     install_parser.add_argument("--skill-mode", choices=("symlink", "copy"), default="copy")
     install_parser.add_argument("--manifest-path", default=None)
+    for role in ("reasoning", "coding", "general", "vision", "embedding", "safety"):
+        install_parser.add_argument(
+            f"--{role}-model",
+            action="append",
+            default=None,
+            help=f"Preferred model order override for {role}. Repeat flag to define failover order.",
+        )
     doctor_parser = subparsers.add_parser(
         "doctor-openclaw-cloud",
         aliases=("doctor-openclaw-local",),
@@ -96,6 +105,7 @@ def main() -> int:
             state_dir=Path(args.state_dir) if args.state_dir else None,
             skill_mode=args.skill_mode,
             manifest_path=Path(args.manifest_path) if args.manifest_path else None,
+            role_model_overrides=_role_model_overrides_from_args(args),
         )
         print(json.dumps(result, ensure_ascii=True, indent=2))
         return 0
@@ -129,3 +139,18 @@ def main() -> int:
         return 0
     parser.error(f"Unknown command {args.command}")
     return 2
+
+
+def _role_model_overrides_from_args(args: argparse.Namespace) -> dict[ModelRole, tuple[str, ...]] | None:
+    role_model_overrides: dict[ModelRole, tuple[str, ...]] = {}
+    for role in ModelRole:
+        raw_models = getattr(args, f"{role.value}_model", None)
+        if not raw_models:
+            continue
+        cleaned_models = tuple(model.strip() for model in raw_models if model and model.strip())
+        if not cleaned_models:
+            continue
+        if len(cleaned_models) != len(set(cleaned_models)):
+            raise ConfigurationError(f"Duplicate model override detected for role {role.value}")
+        role_model_overrides[role] = cleaned_models
+    return role_model_overrides or None

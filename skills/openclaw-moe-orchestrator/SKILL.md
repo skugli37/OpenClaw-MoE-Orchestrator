@@ -39,6 +39,7 @@ For production, prefer OpenClaw's native Ollama adapter:
 - Model refs: `ollama/<model>`
 - Rotation/failover should use Ollama Cloud model tags from `configs/ollama_model_manifest.json`
 - Do not add `/v1` unless you intentionally need OpenAI-compatible proxy mode.
+- Use repeated `--reasoning-model`, `--coding-model`, `--general-model`, `--vision-model`, `--embedding-model`, and `--safety-model` flags on `openclaw-moe install-openclaw-cloud` when you want a different active role order without editing the manifest.
 
 ### 5. Run repository workflows
 Use the packaged CLI or the thin compatibility wrappers in `scripts/`:

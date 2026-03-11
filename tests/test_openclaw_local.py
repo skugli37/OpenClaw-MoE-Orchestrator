@@ -14,6 +14,7 @@ from openclaw_moe_orchestrator.openclaw_local import (  # noqa: E402
     collect_openclaw_local_status,
     install_openclaw_local_bundle,
 )
+from openclaw_moe_orchestrator.llm import ModelRole  # noqa: E402
 from openclaw_moe_orchestrator.paths import RepoPaths  # noqa: E402
 
 
@@ -59,6 +60,30 @@ def test_install_openclaw_local_bundle_updates_active_config_and_keeps_backup(tm
     assert result["active_config_backup"] == str(backup_path)
     assert backup_path.read_text() == "{\"stale\":true}"
     assert json.loads(layout.config_path.read_text())["models"]["providers"]["ollama"]["api"] == "ollama"
+
+
+def test_install_openclaw_local_bundle_applies_role_model_overrides(tmp_path: Path) -> None:
+    paths = RepoPaths.discover(REPO_ROOT)
+    state_dir = tmp_path / ".openclaw"
+
+    result = install_openclaw_local_bundle(
+        paths,
+        state_dir=state_dir,
+        role_model_overrides={
+            ModelRole.REASONING: ("qwen3-next:80b-cloud", "gpt-oss:120b-cloud"),
+            ModelRole.CODING: ("qwen3-coder-next:cloud",),
+            ModelRole.GENERAL: ("gpt-oss:120b-cloud",),
+        },
+    )
+
+    layout = OpenClawLocalLayout.discover(state_dir)
+    overlay = json.loads(layout.overlay_config_path.read_text())
+    assert overlay["agents"]["defaults"]["model"]["primary"] == "ollama/qwen3-next:80b-cloud"
+    assert overlay["agents"]["defaults"]["model"]["fallbacks"] == [
+        "ollama/gpt-oss:120b-cloud",
+        "ollama/qwen3-coder-next:cloud",
+    ]
+    assert result["role_model_overrides"]["reasoning"] == ["qwen3-next:80b-cloud", "gpt-oss:120b-cloud"]
 
 
 def test_collect_openclaw_local_status_reports_local_files(tmp_path: Path) -> None:

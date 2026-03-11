@@ -4,11 +4,12 @@ import json
 import os
 import secrets
 import shutil
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
 from .exceptions import ConfigurationError
-from .llm import ModelRole, OllamaModelSpec, load_manifest
+from .llm import ModelRole, OllamaManifest, OllamaModelSpec, load_manifest
 from .paths import RepoPaths
 
 DEFAULT_OPENCLAW_STATE_DIR = Path.home() / ".openclaw"
@@ -73,12 +74,15 @@ def build_openclaw_local_overlay(
     manifest_path: Path | str,
     workspace_dir: Path | None = None,
     gateway_token: str | None = None,
+    role_model_overrides: dict[ModelRole, tuple[str, ...]] | None = None,
 ) -> dict:
     manifest = load_manifest(manifest_path)
-    primary_reasoning = _first_model_for_role(manifest_path, ModelRole.REASONING)
-    coding_model = _first_model_for_role(manifest_path, ModelRole.CODING)
-    general_model = _first_model_for_role(manifest_path, ModelRole.GENERAL)
-    fallback_models = [model for model in (general_model, coding_model) if model and model != primary_reasoning]
+    ordered_manifest = reorder_manifest(manifest, role_model_overrides=role_model_overrides)
+    reasoning_models = _ordered_models_for_role(ordered_manifest, ModelRole.REASONING)
+    coding_models = _ordered_models_for_role(ordered_manifest, ModelRole.CODING)
+    general_models = _ordered_models_for_role(ordered_manifest, ModelRole.GENERAL)
+    primary_reasoning = reasoning_models[0]
+    fallback_models = _dedupe_models(reasoning_models[1:] + general_models[:1] + coding_models[:1], primary_reasoning)
     workspace_dir = workspace_dir or (DEFAULT_OPENCLAW_STATE_DIR / "workspace")
     gateway_token = gateway_token or secrets.token_hex(32)
     return {
@@ -108,10 +112,10 @@ def build_openclaw_local_overlay(
             "mode": "replace",
             "providers": {
                 "ollama": {
-                    "baseUrl": manifest.base_url,
+                    "baseUrl": ordered_manifest.base_url,
                     "apiKey": DEFAULT_OLLAMA_AUTH_MARKER,
                     "api": "ollama",
-                    "models": [_render_provider_model(spec) for spec in manifest.models],
+                    "models": [_render_provider_model(spec) for spec in ordered_manifest.models],
                 }
             }
         },
@@ -136,13 +140,75 @@ def _render_provider_model(spec: OllamaModelSpec) -> dict:
     }
 
 
-def _first_model_for_role(manifest_path: Path | str, role: ModelRole) -> str:
-    manifest = load_manifest(manifest_path)
+def _ordered_models_for_role(manifest: OllamaManifest, role: ModelRole) -> list[str]:
     models = manifest.models_for_role(role)
     if not models:
-        raise ConfigurationError(f"Ollama manifest {manifest_path} does not define role {role}")
+        raise ConfigurationError(f"Ollama manifest does not define role {role}")
     ordered = sorted(models, key=lambda item: item.priority, reverse=True)
-    return ordered[0].model
+    return [item.model for item in ordered]
+
+
+def reorder_manifest(
+    manifest: OllamaManifest,
+    *,
+    role_model_overrides: dict[ModelRole, tuple[str, ...]] | None = None,
+) -> OllamaManifest:
+    if not role_model_overrides:
+        return manifest
+
+    overrides = {role: tuple(models) for role, models in role_model_overrides.items() if models}
+    if not overrides:
+        return manifest
+
+    available_by_role: dict[ModelRole, dict[str, OllamaModelSpec]] = {
+        role: {spec.model: spec for spec in manifest.models_for_role(role)}
+        for role in ModelRole
+    }
+    normalized_models: list[OllamaModelSpec] = []
+    for role in ModelRole:
+        role_specs = list(manifest.models_for_role(role))
+        if not role_specs:
+            continue
+        ordered_for_role: list[OllamaModelSpec] = []
+        seen_models: set[str] = set()
+        for model in overrides.get(role, ()):
+            spec = available_by_role[role].get(model)
+            if spec is None:
+                raise ConfigurationError(f"Model {model} is not configured for role {role}")
+            ordered_for_role.append(spec)
+            seen_models.add(model)
+        remaining_specs = sorted(role_specs, key=lambda item: item.priority, reverse=True)
+        for spec in remaining_specs:
+            if spec.model not in seen_models:
+                ordered_for_role.append(spec)
+        base_priority = max(spec.priority for spec in role_specs) + len(ordered_for_role)
+        for index, spec in enumerate(ordered_for_role):
+            normalized_models.append(
+                OllamaModelSpec(
+                    role=spec.role,
+                    model=spec.model,
+                    priority=base_priority - index,
+                    warm=spec.warm,
+                    max_concurrency=spec.max_concurrency,
+                    min_context_window=spec.min_context_window,
+                    capabilities=spec.capabilities,
+                )
+            )
+
+    return OllamaManifest(
+        base_url=manifest.base_url,
+        timeout_seconds=manifest.timeout_seconds,
+        cooldown_seconds=manifest.cooldown_seconds,
+        models=tuple(normalized_models),
+    )
+
+
+def _dedupe_models(models: list[str], primary_model: str) -> list[str]:
+    unique_models = OrderedDict()
+    for model in models:
+        if model != primary_model:
+            unique_models.setdefault(model, None)
+    return list(unique_models.keys())
 
 
 def install_workspace_skill(paths: RepoPaths, layout: OpenClawLocalLayout, mode: str = "copy") -> Path:
@@ -174,7 +240,12 @@ def write_local_auth_profiles(layout: OpenClawLocalLayout, base_url: str = DEFAU
     return layout.auth_profiles_path
 
 
-def write_openclaw_overlay(layout: OpenClawLocalLayout, manifest_path: Path | str) -> Path:
+def write_openclaw_overlay(
+    layout: OpenClawLocalLayout,
+    manifest_path: Path | str,
+    *,
+    role_model_overrides: dict[ModelRole, tuple[str, ...]] | None = None,
+) -> Path:
     layout.ensure_directories()
     existing_token = None
     if layout.overlay_config_path.exists():
@@ -187,6 +258,7 @@ def write_openclaw_overlay(layout: OpenClawLocalLayout, manifest_path: Path | st
         manifest_path,
         workspace_dir=layout.workspace_dir,
         gateway_token=existing_token,
+        role_model_overrides=role_model_overrides,
     )
     layout.overlay_config_path.write_text(json.dumps(overlay, indent=2))
     return layout.overlay_config_path
@@ -198,13 +270,18 @@ def install_openclaw_local_bundle(
     state_dir: Path | None = None,
     skill_mode: str = "copy",
     manifest_path: Path | None = None,
+    role_model_overrides: dict[ModelRole, tuple[str, ...]] | None = None,
 ) -> dict[str, str]:
     layout = OpenClawLocalLayout.discover(state_dir)
     layout.ensure_directories()
     manifest_path = manifest_path or (paths.config_dir / "ollama_model_manifest.json")
     skill_path = install_workspace_skill(paths, layout, mode=skill_mode)
     auth_profiles_path = write_local_auth_profiles(layout)
-    overlay_path = write_openclaw_overlay(layout, manifest_path)
+    overlay_path = write_openclaw_overlay(
+        layout,
+        manifest_path,
+        role_model_overrides=role_model_overrides,
+    )
     active_config_path = layout.config_path
     backup_path = None
     if active_config_path.exists():
@@ -227,6 +304,12 @@ def install_openclaw_local_bundle(
     }
     if backup_path is not None:
         result["active_config_backup"] = str(backup_path)
+    if role_model_overrides:
+        result["role_model_overrides"] = {
+            role.value: list(models)
+            for role, models in role_model_overrides.items()
+            if models
+        }
     return result
 
 

@@ -101,6 +101,16 @@ openclaw-moe install-openclaw-cloud
 
 The generated OpenClaw auth profile uses the non-secret marker `ollama-cloud`. The actual Ollama Cloud credential should be configured on the Ollama daemon.
 
+Override active role models without editing the committed manifest:
+
+```bash
+openclaw-moe install-openclaw-cloud \
+  --reasoning-model qwen3-next:80b-cloud \
+  --reasoning-model gpt-oss:120b-cloud \
+  --coding-model qwen3-coder-next:cloud \
+  --general-model gpt-oss:120b-cloud
+```
+
 Stage Ollama pulls from the committed manifest:
 
 ```bash
