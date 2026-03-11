@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .environment import collect_environment_report
 from .exceptions import ConfigurationError
-from .llm import ModelRole, OllamaClient, OllamaModelEntry, load_manifest
+from .llm import ModelRole, OllamaClient, load_manifest
 from .openclaw_local import collect_openclaw_local_status, install_openclaw_local_bundle
 from .paths import RepoPaths
 from .pipelines import run_integrated_orchestrator, run_multi_asset_report, run_single_asset_mission
@@ -152,7 +152,7 @@ def build_model_catalog(paths: RepoPaths) -> dict[str, Any]:
     for role in ModelRole:
         ordered_models = sorted(manifest.models_for_role(role), key=lambda item: item.priority, reverse=True)
         defaults[role.value] = [item.model for item in ordered_models]
-        role_rows = [
+        roles[role.value] = [
             {
                 "model": item.model,
                 "priority": item.priority,
@@ -166,12 +166,6 @@ def build_model_catalog(paths: RepoPaths) -> dict[str, Any]:
             }
             for item in ordered_models
         ]
-        known_models = {item["model"] for item in role_rows}
-        for entry in live_entries:
-            if entry.name in known_models:
-                continue
-            role_rows.append(_live_only_catalog_entry(role, entry, entry.name in active_models))
-        roles[role.value] = role_rows
     return {
         "base_url": manifest.base_url,
         "timeout_seconds": manifest.timeout_seconds,
@@ -191,25 +185,6 @@ def build_model_catalog(paths: RepoPaths) -> dict[str, Any]:
         "live_error": live_error,
         "defaults": defaults,
         "roles": roles,
-    }
-
-
-def _live_only_catalog_entry(role: ModelRole, entry: OllamaModelEntry, active: bool) -> dict[str, Any]:
-    capabilities = ["live", role.value]
-    if entry.family:
-        capabilities.append(entry.family)
-    if entry.remote_host:
-        capabilities.append("cloud")
-    return {
-        "model": entry.name,
-        "priority": 0,
-        "warm": False,
-        "max_concurrency": 1,
-        "min_context_window": None,
-        "capabilities": capabilities,
-        "available": True,
-        "active": active,
-        "source": "live",
     }
 
 

@@ -208,6 +208,10 @@ h1 {
   gap: 12px;
 }
 
+.live-inventory {
+  margin-top: 18px;
+}
+
 .operator-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
@@ -216,7 +220,8 @@ h1 {
 
 .config-well,
 .execution-well,
-.role-card {
+.role-card,
+.inventory-card {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 22px;
   background: rgba(6, 16, 24, 0.72);
@@ -237,6 +242,10 @@ h1 {
 
 .panel-subhead {
   margin-bottom: 14px;
+}
+
+.panel-subhead.compact {
+  margin-bottom: 10px;
 }
 
 .catalog-status {
@@ -273,6 +282,31 @@ h1 {
 .catalog-list {
   display: grid;
   gap: 8px;
+}
+
+.inventory-card {
+  padding: 16px;
+}
+
+.inventory-list {
+  display: grid;
+  gap: 8px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.inventory-row {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.inventory-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .field-label {
@@ -381,11 +415,6 @@ textarea {
 .mini-badge.active {
   background: rgba(255, 209, 102, 0.14);
   color: var(--warn);
-}
-
-.mini-badge.live-only {
-  background: rgba(255, 133, 95, 0.14);
-  color: var(--accent-strong);
 }
 
 .ghost.accent {

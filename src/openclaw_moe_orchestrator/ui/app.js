@@ -22,6 +22,7 @@ const els = {
   applyModels: document.getElementById("apply-models"),
   roleGrid: document.getElementById("role-grid"),
   catalogStatus: document.getElementById("catalog-status"),
+  liveInventory: document.getElementById("live-inventory"),
 };
 
 let pollHandle = null;
@@ -43,6 +44,10 @@ function getRoleDefaults(catalog, role) {
 
 function getRoleSpecs(catalog, role) {
   return [...(catalog?.roles?.[role] || [])];
+}
+
+function getLiveEntries(catalog) {
+  return [...(catalog?.live_entries || [])];
 }
 
 function initRoleSelections(catalog) {
@@ -224,9 +229,20 @@ function renderRoleCard(role, catalog) {
   const specs = getRoleSpecs(catalog, role);
   const selected = roleSelections[role] || [];
   const currentValue = selected[0] || "";
-  const options = specs
+  const optionModels = new Map();
+  specs.forEach((spec) => optionModels.set(spec.model, spec));
+  getLiveEntries(catalog).forEach((entry) => {
+    if (!optionModels.has(entry.model)) {
+      optionModels.set(entry.model, {
+        model: entry.model,
+        source: "live",
+        available: true,
+      });
+    }
+  });
+  const options = [...optionModels.values()]
     .map((spec) => {
-      const availability = spec.source === "live" ? "live-only" : spec.available ? "live" : "manifest";
+      const availability = spec.source === "live" ? "live" : spec.available ? "manifest+live" : "manifest";
       return `
         <option value="${escapeHtml(spec.model)}" ${spec.model === currentValue ? "selected" : ""}>
           ${escapeHtml(spec.model)} · ${availability}
@@ -258,8 +274,7 @@ function renderRoleCard(role, catalog) {
             <div class="catalog-meta">${escapeHtml((spec.capabilities || []).join(" · ") || "no capabilities")}</div>
           </div>
           <div class="catalog-flags">
-            <span class="mini-badge ${spec.source === "live" ? "live-only" : "ghost"}">${escapeHtml(spec.source || "manifest")}</span>
-            <span class="mini-badge ${spec.available ? "live" : "ghost"}">${spec.available ? "live" : "manifest"}</span>
+            <span class="mini-badge ${spec.available ? "live" : "ghost"}">${spec.available ? "live" : "manifest-only"}</span>
             ${spec.active ? '<span class="mini-badge active">active</span>' : ""}
           </div>
         </div>
@@ -287,6 +302,36 @@ function renderRoleCard(role, catalog) {
       </div>
       <div class="catalog-list">${manifestList}</div>
     </section>
+  `;
+}
+
+function renderLiveInventory(snapshot) {
+  const entries = getLiveEntries(snapshot.model_catalog || {});
+  if (!entries.length) {
+    els.liveInventory.innerHTML = `<div class="inventory-card"><p class="panel-note">No live Ollama models detected.</p></div>`;
+    return;
+  }
+  els.liveInventory.innerHTML = `
+    <div class="inventory-card">
+      <div class="panel-subhead compact">
+        <h3>Live Inventory</h3>
+        <p class="panel-note">All models currently visible from Ollama.</p>
+      </div>
+      <div class="inventory-list">
+        ${entries
+          .map(
+            (entry) => `
+              <div class="inventory-row">
+                <strong class="mono">${escapeHtml(entry.model)}</strong>
+                <span class="inventory-meta">${escapeHtml(
+                  [entry.family, entry.parameter_size, entry.quantization_level].filter(Boolean).join(" · ") || "live model",
+                )}</span>
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+    </div>
   `;
 }
 
@@ -342,6 +387,7 @@ async function refreshDashboard() {
     renderMetrics(latestSnapshot);
     renderProfile(latestSnapshot);
     renderCatalog(latestSnapshot);
+    renderLiveInventory(latestSnapshot);
     renderJobs(latestSnapshot);
     renderRuns(latestSnapshot);
   } catch (error) {

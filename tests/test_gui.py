@@ -120,5 +120,5 @@ def test_build_model_catalog_includes_live_only_models(monkeypatch) -> None:
 
     catalog = build_model_catalog(paths)
 
-    assert any(item["model"] == "kimi-k2.5:cloud" for item in catalog["roles"]["reasoning"])
-    assert any(item["source"] == "live" for item in catalog["roles"]["reasoning"])
+    assert any(item["model"] == "kimi-k2.5:cloud" for item in catalog["live_entries"])
+    assert all(item["source"] == "manifest" for item in catalog["roles"]["reasoning"])
