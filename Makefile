@@ -31,7 +31,7 @@ install: $(PYTHON)
 
 install-ci: $(PYTHON)
 	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PIP) install --upgrade pip
-	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PIP) install pytest==9.0.2 ruff==0.15.5
+	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PIP) install pytest==9.0.2 ruff==0.15.5 numpy==2.3.5 pandas==3.0.1
 
 lint: install-ci
 	PYTHONPATH=src $(RUFF) check src scripts tests .github/tests
