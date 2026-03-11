@@ -12,7 +12,7 @@ from .llm import ModelRole, OllamaModelSpec, load_manifest
 from .paths import RepoPaths
 
 DEFAULT_OPENCLAW_STATE_DIR = Path.home() / ".openclaw"
-DEFAULT_OLLAMA_API_KEY_MARKER = "ollama-cloud"
+DEFAULT_OLLAMA_AUTH_MARKER = "ollama-cloud"
 DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 
 
@@ -62,7 +62,7 @@ def render_local_auth_profiles(base_url: str = DEFAULT_OLLAMA_BASE_URL) -> dict:
             "ollama:default": {
                 "provider": "ollama",
                 "type": "api_key",
-                "key": DEFAULT_OLLAMA_API_KEY_MARKER,
+                "key": DEFAULT_OLLAMA_AUTH_MARKER,
             }
         },
         "usageStats": {},
@@ -109,7 +109,7 @@ def build_openclaw_local_overlay(
             "providers": {
                 "ollama": {
                     "baseUrl": manifest.base_url,
-                    "apiKey": DEFAULT_OLLAMA_API_KEY_MARKER,
+                    "apiKey": DEFAULT_OLLAMA_AUTH_MARKER,
                     "api": "ollama",
                     "models": [_render_provider_model(spec) for spec in manifest.models],
                 }
