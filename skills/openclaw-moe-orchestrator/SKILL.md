@@ -43,6 +43,7 @@ For production, prefer OpenClaw's native Ollama adapter:
 
 ### 5. Run repository workflows
 Use the packaged CLI or the thin compatibility wrappers in `scripts/`:
+- `openclaw-moe serve-gui`
 - `openclaw-moe run-mission`
 - `openclaw-moe run-integrated`
 - `openclaw-moe detect-single`

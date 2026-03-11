@@ -55,6 +55,7 @@ openclaw-moe doctor
 openclaw-moe run-mission
 openclaw-moe run-multi-report
 openclaw-moe run-integrated
+openclaw-moe serve-gui --host 127.0.0.1 --port 8765
 openclaw-moe detect-single
 openclaw-moe detect-multi
 openclaw-moe visualize-multi
@@ -119,6 +120,23 @@ openclaw-moe sync-ollama-models --role general --max-models 1 --dry-run
 ```
 
 Full setup notes live in `docs/openclaw_local_ollama_integration.md`.
+
+## GUI
+
+Launch the built-in control room:
+
+```bash
+openclaw-moe serve-gui --host 127.0.0.1 --port 8765
+```
+
+Then open `http://127.0.0.1:8765`.
+
+The GUI provides:
+
+- one-click execution for `run-mission`, `run-multi-report`, `run-integrated`, and `install-openclaw-cloud`
+- live OpenClaw/Ollama profile status
+- recent run bundles with direct links to generated reports and artifacts
+- model override fields so active role order can be changed without editing repo files
 
 ## Locked Dependencies
 

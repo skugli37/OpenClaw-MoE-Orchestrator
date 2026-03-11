@@ -43,6 +43,9 @@ package-dir = { "" = "src" }
 where = ["src"]
 include = ["openclaw_moe_orchestrator*"]
 
+[tool.setuptools.package-data]
+openclaw_moe_orchestrator = ["ui/*"]
+
 [tool.ruff]
 target-version = "py312"
 line-length = 100

@@ -91,6 +91,14 @@ openclaw-moe run-mission
 openclaw-moe run-integrated
 ```
 
+For a GUI-first workflow:
+
+```bash
+openclaw-moe serve-gui --host 127.0.0.1 --port 8765
+```
+
+Then open `http://127.0.0.1:8765`.
+
 ## Production Notes
 
 - Keep OpenAI and Anthropic providers out of `auth-profiles.json` and `openclaw.json`.

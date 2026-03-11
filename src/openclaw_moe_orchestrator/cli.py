@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .environment import collect_environment_report, format_environment_report
 from .exceptions import ConfigurationError
+from .gui import serve_gui
 from .llm import ModelRole
 from .logging_utils import configure_logging
 from .openclaw_local import collect_openclaw_local_status, install_openclaw_local_bundle
@@ -34,6 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("visualize-multi")
     subparsers.add_parser("run-integrated")
     subparsers.add_parser("doctor")
+    gui_parser = subparsers.add_parser("serve-gui")
+    gui_parser.add_argument("--host", default="127.0.0.1")
+    gui_parser.add_argument("--port", type=int, default=8765)
     install_parser = subparsers.add_parser(
         "install-openclaw-cloud",
         aliases=("install-openclaw-local",),
@@ -98,6 +102,9 @@ def main() -> int:
         return 0
     if args.command == "doctor":
         print(format_environment_report(collect_environment_report(paths)))
+        return 0
+    if args.command == "serve-gui":
+        serve_gui(paths, host=args.host, port=args.port)
         return 0
     if args.command in {"install-openclaw-cloud", "install-openclaw-local"}:
         result = install_openclaw_local_bundle(

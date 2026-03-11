@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenClaw MoE Control Room</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Bebas+Neue&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <div class="noise"></div>
+    <main class="shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Control Room</p>
+          <h1>OpenClaw MoE Orchestrator</h1>
+          <p class="lede">
+            GUI-first cockpit for market anomaly detection, OpenClaw wiring, and Ollama Cloud
+            routing.
+          </p>
+        </div>
+        <div class="hero-status" id="hero-status">
+          <div class="status-pill">Loading</div>
+          <p>Connecting to runtime.</p>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel metrics-panel">
+          <div class="panel-head">
+            <h2>Runtime</h2>
+            <button class="ghost" id="refresh-dashboard">Refresh</button>
+          </div>
+          <div class="metric-grid" id="metric-grid"></div>
+        </article>
+
+        <article class="panel action-panel">
+          <div class="panel-head">
+            <h2>Execution</h2>
+            <span class="panel-note">One-click jobs</span>
+          </div>
+          <div class="action-stack">
+            <button class="action-btn" data-workflow="run-mission">Run Mission</button>
+            <button class="action-btn" data-workflow="run-multi-report">Run Multi-Asset</button>
+            <button class="action-btn" data-workflow="run-integrated">Run Integrated</button>
+            <button class="action-btn secondary" data-workflow="install-openclaw-cloud">
+              Rebuild OpenClaw Config
+            </button>
+          </div>
+          <form class="override-form" id="override-form">
+            <label>
+              <span>Reasoning Models</span>
+              <textarea id="reasoning-models" placeholder="qwen3-next:80b-cloud&#10;gpt-oss:120b-cloud"></textarea>
+            </label>
+            <label>
+              <span>Coding Models</span>
+              <textarea id="coding-models" placeholder="qwen3-coder-next:cloud"></textarea>
+            </label>
+            <label>
+              <span>General Models</span>
+              <textarea id="general-models" placeholder="gpt-oss:120b-cloud"></textarea>
+            </label>
+          </form>
+        </article>
+
+        <article class="panel profile-panel">
+          <div class="panel-head">
+            <h2>Active OpenClaw Profile</h2>
+            <span class="panel-note">Live config</span>
+          </div>
+          <div id="profile-card" class="profile-card"></div>
+        </article>
+
+        <article class="panel jobs-panel">
+          <div class="panel-head">
+            <h2>Job Feed</h2>
+            <span class="panel-note">Queued and completed runs</span>
+          </div>
+          <div id="job-feed" class="job-feed"></div>
+        </article>
+
+        <article class="panel runs-panel">
+          <div class="panel-head">
+            <h2>Recent Bundles</h2>
+            <span class="panel-note">Artifacts and reports</span>
+          </div>
+          <div id="runs-feed" class="runs-feed"></div>
+        </article>
+      </section>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
