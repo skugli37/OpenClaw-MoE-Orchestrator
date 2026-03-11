@@ -1,44 +1,60 @@
 ---
 name: openclaw-moe-orchestrator
-description: Orchestrate OpenClaw agents with DeepSpeed MoE (Mixture of Experts) for high-performance AI tasks. Use for: setting up autonomous agents, configuring DeepSpeed ZeRO-2/3, and running MoE-based market or data analysis.
+description: Orchestrate OpenClaw agents with DeepSpeed MoE and Ollama Cloud model rotation. Use for: configuring OpenClaw auth profiles, wiring Ollama providers, and running MoE-based market or data analysis without OpenAI or Anthropic providers.
 ---
 
 # OpenClaw MoE Orchestrator
 
-This skill enables the orchestration of autonomous agents using the **OpenClaw** framework, optimized with **DeepSpeed Mixture of Experts (MoE)**. It is designed for high-performance computing tasks focused on real market-data analysis, anomaly detection, and autonomous decision-making.
+This skill covers the production path for this repository: OpenClaw orchestration, Ollama-backed cloud model rotation, and DeepSpeed MoE workflows. Keep OpenAI and Anthropic out of the active runtime path.
 
 ## Core Workflow
 
-### 1. Environment Setup
-Use the repository's packaged runtime instead of ad hoc global installs:
+### 1. Install the packaged runtime
+Use the repository environment instead of ad hoc global installs:
 ```bash
-python -m pip install -e .
+python3 -m pip install -e .
 ```
 
-### 2. OpenClaw Initialization
-Clone and build the OpenClaw framework:
+### 2. Bring up OpenClaw + Ollama Cloud access
+Use the Ollama daemon as the provider surface, then pull or route Ollama Cloud model tags:
 ```bash
-git clone https://github.com/openclaw/openclaw.git
-cd openclaw && sudo corepack enable && pnpm install && pnpm build
+ollama signin
+ollama serve
+ollama pull gpt-oss:120b-cloud
+ollama pull qwen3-coder-next:cloud
+ollama pull qwen3-next:80b-cloud
+ollama pull qwen3-vl:235b-cloud
+curl http://127.0.0.1:11434/api/tags
 ```
 
-### 3. DeepSpeed MoE Configuration
-Use the provided templates to configure DeepSpeed ZeRO-2/3. For CPU-based environments, ZeRO-2 with offload is recommended.
-- Template: `templates/ds_config_zero2.json`
+### 3. Seed OpenClaw auth for Ollama operation
+Use `templates/auth-profiles.json` as the starting point for `~/.openclaw/agents/<agentId>/agent/auth-profiles.json`.
+- The checked-in profile already carries the non-secret marker value `ollama-cloud`.
+- The real Cloud credential belongs on the Ollama daemon side, not in the OpenClaw provider profile.
 
-### 4. Running Autonomous Missions
+### 4. Configure the Ollama provider in native mode
+For production, prefer OpenClaw's native Ollama adapter:
+- `baseUrl`: `http://127.0.0.1:11434`
+- `api`: `ollama`
+- Model refs: `ollama/<model>`
+- Rotation/failover should use Ollama Cloud model tags from `configs/ollama_model_manifest.json`
+- Do not add `/v1` unless you intentionally need OpenAI-compatible proxy mode.
+
+### 5. Run repository workflows
 Use the packaged CLI or the thin compatibility wrappers in `scripts/`:
-- `python -m openclaw_moe_orchestrator run-mission`
-- `python -m openclaw_moe_orchestrator run-integrated`
-- `python -m openclaw_moe_orchestrator detect-single`
-- `python -m openclaw_moe_orchestrator detect-multi`
+- `openclaw-moe run-mission`
+- `openclaw-moe run-integrated`
+- `openclaw-moe detect-single`
+- `openclaw-moe detect-multi`
 
 ## Best Practices
-- **Use the packaged entry points**: Production runs should use the Python package, not hardcoded home-directory paths.
-- **Prefer GPU execution when available**: Runtime adapts DeepSpeed config to the local machine and avoids CPU-offload settings that require fragile JIT builds.
-- **Keep templates only as templates**: Production code should consume checked-in configs under `configs/`, while `templates/` remain starting points for variants.
+- Use the packaged entry points for production runs.
+- Keep OpenClaw on a loopback bind unless you have a deliberate gateway design.
+- Prefer explicit Ollama provider config in production so model inventory, cloud tags, and context windows stay deterministic.
+- Treat `templates/` as bootstrap material and move deployed configs into your OpenClaw state directory.
+- Use `docs/openclaw_local_ollama_integration.md` for the full Ollama Cloud setup sequence.
 
 ## Bundled Resources
-- `scripts/`: Thin compatibility wrappers around the packaged production runtime.
-- `templates/`: DeepSpeed and OpenClaw configuration boilerplates.
-- `references/`: Documentation for advanced MoE tuning.
+- `templates/auth-profiles.json`: env-backed Ollama auth profile template.
+- `templates/ds_config_zero3.json`: DeepSpeed bootstrap config.
+- `scripts/`: thin compatibility wrappers around the packaged production runtime.

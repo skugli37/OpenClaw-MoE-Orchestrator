@@ -2,6 +2,8 @@
 
 Production-oriented market analysis and anomaly detection workflows built around DeepSpeed Mixture-of-Experts models and zero-cost external news validation.
 
+The repository now also includes a production OpenClaw integration path backed by Ollama Cloud model rotation, with OpenAI and Anthropic kept out of the active provider path.
+
 ## What It Does
 
 - Downloads real crypto market data from Yahoo Finance.
@@ -56,6 +58,10 @@ openclaw-moe run-integrated
 openclaw-moe detect-single
 openclaw-moe detect-multi
 openclaw-moe visualize-multi
+openclaw-moe install-openclaw-cloud
+openclaw-moe doctor-openclaw-cloud
+openclaw-moe list-ollama-models
+openclaw-moe sync-ollama-models --dry-run
 ```
 
 Compatibility launchers remain available:
@@ -80,6 +86,29 @@ make lint
 make test
 make audit
 ```
+
+OpenClaw + Ollama integration report:
+
+```bash
+openclaw-moe doctor-openclaw-cloud
+```
+
+Seed the local OpenClaw workspace, auth profiles, and overlay config:
+
+```bash
+openclaw-moe install-openclaw-cloud
+```
+
+The generated OpenClaw auth profile uses the non-secret marker `ollama-cloud`. The actual Ollama Cloud credential should be configured on the Ollama daemon.
+
+Stage Ollama pulls from the committed manifest:
+
+```bash
+openclaw-moe sync-ollama-models --role reasoning --max-models 1 --dry-run
+openclaw-moe sync-ollama-models --role general --max-models 1 --dry-run
+```
+
+Full setup notes live in `docs/openclaw_local_ollama_integration.md`.
 
 ## Locked Dependencies
 

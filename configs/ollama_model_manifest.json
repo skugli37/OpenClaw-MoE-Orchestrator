@@ -1,0 +1,18 @@
+{
+  "base_url": "http://127.0.0.1:11434",
+  "timeout_seconds": 60.0,
+  "cooldown_seconds": 30.0,
+  "models": [
+    {"role": "reasoning", "model": "gpt-oss:120b-cloud", "priority": 130, "warm": true, "min_context_window": 131072, "capabilities": ["tools", "reasoning", "cloud"]},
+    {"role": "reasoning", "model": "qwen3-next:80b-cloud", "priority": 120, "min_context_window": 256000, "capabilities": ["tools", "thinking", "cloud"]},
+    {"role": "coding", "model": "qwen3-coder-next:cloud", "priority": 130, "warm": true, "min_context_window": 256000, "capabilities": ["tools", "coding", "cloud"]},
+    {"role": "coding", "model": "qwen3-next:80b-cloud", "priority": 120, "min_context_window": 256000, "capabilities": ["tools", "thinking", "cloud"]},
+    {"role": "general", "model": "qwen3-next:80b-cloud", "priority": 120, "warm": true, "min_context_window": 256000, "capabilities": ["tools", "thinking", "cloud"]},
+    {"role": "general", "model": "gpt-oss:120b-cloud", "priority": 110, "min_context_window": 131072, "capabilities": ["tools", "reasoning", "cloud"]},
+    {"role": "vision", "model": "qwen3-vl:235b-cloud", "priority": 120, "min_context_window": 256000, "capabilities": ["vision", "tools", "thinking", "cloud"]},
+    {"role": "embedding", "model": "snowflake-arctic-embed2", "priority": 120, "min_context_window": 32768, "capabilities": ["embedding", "cloud"]},
+    {"role": "embedding", "model": "nomic-embed-text", "priority": 110, "min_context_window": 8192, "capabilities": ["embedding"]},
+    {"role": "safety", "model": "gpt-oss:120b-cloud", "priority": 120, "min_context_window": 131072, "capabilities": ["safety", "cloud"]},
+    {"role": "safety", "model": "qwen3-next:80b-cloud", "priority": 110, "min_context_window": 256000, "capabilities": ["safety", "cloud"]}
+  ]
+}

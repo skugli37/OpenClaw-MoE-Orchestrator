@@ -1,0 +1,253 @@
+from __future__ import annotations
+
+import json
+import os
+import secrets
+import shutil
+from dataclasses import dataclass
+from pathlib import Path
+
+from .exceptions import ConfigurationError
+from .llm import ModelRole, OllamaModelSpec, load_manifest
+from .paths import RepoPaths
+
+DEFAULT_OPENCLAW_STATE_DIR = Path.home() / ".openclaw"
+DEFAULT_OLLAMA_API_KEY_MARKER = "ollama-cloud"
+DEFAULT_OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+
+
+@dataclass(frozen=True)
+class OpenClawLocalLayout:
+    state_dir: Path
+    workspace_dir: Path
+    skills_dir: Path
+    main_agent_dir: Path
+    main_session_dir: Path
+    auth_profiles_path: Path
+    config_path: Path
+    overlay_config_path: Path
+
+    @classmethod
+    def discover(cls, state_dir: Path | None = None) -> "OpenClawLocalLayout":
+        root = (state_dir or DEFAULT_OPENCLAW_STATE_DIR).expanduser().resolve()
+        workspace_dir = root / "workspace"
+        skills_dir = workspace_dir / "skills"
+        main_agent_dir = root / "agents" / "main" / "agent"
+        return cls(
+            state_dir=root,
+            workspace_dir=workspace_dir,
+            skills_dir=skills_dir,
+            main_agent_dir=main_agent_dir,
+            main_session_dir=root / "agents" / "main" / "sessions",
+            auth_profiles_path=main_agent_dir / "auth-profiles.json",
+            config_path=root / "openclaw.json",
+            overlay_config_path=root / "openclaw.moe.local.json",
+        )
+
+    def ensure_directories(self) -> None:
+        for directory in (
+            self.state_dir,
+            self.workspace_dir,
+            self.skills_dir,
+            self.main_agent_dir,
+            self.main_session_dir,
+        ):
+            directory.mkdir(parents=True, exist_ok=True)
+
+
+def render_local_auth_profiles(base_url: str = DEFAULT_OLLAMA_BASE_URL) -> dict:
+    del base_url
+    return {
+        "profiles": {
+            "ollama:default": {
+                "provider": "ollama",
+                "type": "api_key",
+                "key": DEFAULT_OLLAMA_API_KEY_MARKER,
+            }
+        },
+        "usageStats": {},
+    }
+
+
+def build_openclaw_local_overlay(
+    manifest_path: Path | str,
+    workspace_dir: Path | None = None,
+    gateway_token: str | None = None,
+) -> dict:
+    manifest = load_manifest(manifest_path)
+    primary_reasoning = _first_model_for_role(manifest_path, ModelRole.REASONING)
+    coding_model = _first_model_for_role(manifest_path, ModelRole.CODING)
+    general_model = _first_model_for_role(manifest_path, ModelRole.GENERAL)
+    fallback_models = [model for model in (general_model, coding_model) if model and model != primary_reasoning]
+    workspace_dir = workspace_dir or (DEFAULT_OPENCLAW_STATE_DIR / "workspace")
+    gateway_token = gateway_token or secrets.token_hex(32)
+    return {
+        "gateway": {
+            "mode": "local",
+            "auth": {"token": gateway_token},
+        },
+        "auth": {
+            "order": {
+                "ollama": ["ollama:default"],
+            }
+        },
+        "agents": {
+            "defaults": {
+                "workspace": str(workspace_dir),
+                "sandbox": {"mode": "off"},
+                "model": {
+                    "primary": f"ollama/{primary_reasoning}",
+                    "fallbacks": [f"ollama/{model}" for model in fallback_models],
+                },
+                "memorySearch": {
+                    "enabled": False,
+                },
+            }
+        },
+        "models": {
+            "mode": "replace",
+            "providers": {
+                "ollama": {
+                    "baseUrl": manifest.base_url,
+                    "apiKey": DEFAULT_OLLAMA_API_KEY_MARKER,
+                    "api": "ollama",
+                    "models": [_render_provider_model(spec) for spec in manifest.models],
+                }
+            }
+        },
+    }
+
+
+def _render_provider_model(spec: OllamaModelSpec) -> dict:
+    context_window = spec.min_context_window or 32768
+    return {
+        "id": spec.model,
+        "name": spec.model,
+        "reasoning": spec.role == ModelRole.REASONING,
+        "input": ["text"],
+        "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+        },
+        "contextWindow": context_window,
+        "maxTokens": context_window * 10,
+    }
+
+
+def _first_model_for_role(manifest_path: Path | str, role: ModelRole) -> str:
+    manifest = load_manifest(manifest_path)
+    models = manifest.models_for_role(role)
+    if not models:
+        raise ConfigurationError(f"Ollama manifest {manifest_path} does not define role {role}")
+    ordered = sorted(models, key=lambda item: item.priority, reverse=True)
+    return ordered[0].model
+
+
+def install_workspace_skill(paths: RepoPaths, layout: OpenClawLocalLayout, mode: str = "copy") -> Path:
+    source = paths.repo_root / "skills" / "openclaw-moe-orchestrator"
+    if not source.exists():
+        raise ConfigurationError(f"Missing workspace skill at {source}")
+    target = layout.skills_dir / source.name
+
+    if target.exists() or target.is_symlink():
+        if mode == "symlink" and target.is_symlink() and target.resolve() == source.resolve():
+            return target
+        if target.is_dir() and not target.is_symlink():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+
+    if mode == "symlink":
+        target.symlink_to(source, target_is_directory=True)
+    elif mode == "copy":
+        shutil.copytree(source, target)
+    else:
+        raise ConfigurationError(f"Unsupported skill installation mode: {mode}")
+    return target
+
+
+def write_local_auth_profiles(layout: OpenClawLocalLayout, base_url: str = DEFAULT_OLLAMA_BASE_URL) -> Path:
+    layout.ensure_directories()
+    layout.auth_profiles_path.write_text(json.dumps(render_local_auth_profiles(base_url), indent=2))
+    return layout.auth_profiles_path
+
+
+def write_openclaw_overlay(layout: OpenClawLocalLayout, manifest_path: Path | str) -> Path:
+    layout.ensure_directories()
+    existing_token = None
+    if layout.overlay_config_path.exists():
+        try:
+            payload = json.loads(layout.overlay_config_path.read_text())
+            existing_token = payload.get("gateway", {}).get("auth", {}).get("token")
+        except json.JSONDecodeError:
+            existing_token = None
+    overlay = build_openclaw_local_overlay(
+        manifest_path,
+        workspace_dir=layout.workspace_dir,
+        gateway_token=existing_token,
+    )
+    layout.overlay_config_path.write_text(json.dumps(overlay, indent=2))
+    return layout.overlay_config_path
+
+
+def install_openclaw_local_bundle(
+    paths: RepoPaths,
+    *,
+    state_dir: Path | None = None,
+    skill_mode: str = "copy",
+    manifest_path: Path | None = None,
+) -> dict[str, str]:
+    layout = OpenClawLocalLayout.discover(state_dir)
+    layout.ensure_directories()
+    manifest_path = manifest_path or (paths.config_dir / "ollama_model_manifest.json")
+    skill_path = install_workspace_skill(paths, layout, mode=skill_mode)
+    auth_profiles_path = write_local_auth_profiles(layout)
+    overlay_path = write_openclaw_overlay(layout, manifest_path)
+    active_config_path = layout.config_path
+    backup_path = None
+    if active_config_path.exists():
+        current_payload = active_config_path.read_text()
+        overlay_payload = overlay_path.read_text()
+        if current_payload != overlay_payload:
+            backup_path = active_config_path.with_suffix(".json.bak")
+            backup_path.write_text(current_payload)
+    shutil.copy2(overlay_path, active_config_path)
+    _harden_permissions(layout)
+    result = {
+        "state_dir": str(layout.state_dir),
+        "workspace_skill": str(skill_path),
+        "auth_profiles": str(auth_profiles_path),
+        "overlay_config": str(overlay_path),
+        "active_config": str(active_config_path),
+        "next_steps": (
+            "Install OpenClaw, authenticate Ollama Cloud, then start the gateway with ~/.openclaw/openclaw.json"
+        ),
+    }
+    if backup_path is not None:
+        result["active_config_backup"] = str(backup_path)
+    return result
+
+
+def collect_openclaw_local_status(paths: RepoPaths, state_dir: Path | None = None) -> dict:
+    layout = OpenClawLocalLayout.discover(state_dir)
+    manifest_path = paths.config_dir / "ollama_model_manifest.json"
+    return {
+        "state_dir": str(layout.state_dir),
+        "openclaw_binary": shutil.which("openclaw"),
+        "ollama_host": os.environ.get("OLLAMA_HOST", DEFAULT_OLLAMA_BASE_URL),
+        "config_exists": layout.config_path.exists(),
+        "overlay_exists": layout.overlay_config_path.exists(),
+        "auth_profiles_exists": layout.auth_profiles_path.exists(),
+        "workspace_skill_exists": (layout.skills_dir / "openclaw-moe-orchestrator").exists(),
+        "manifest_path": str(manifest_path),
+        "manifest_exists": manifest_path.exists(),
+    }
+
+
+def _harden_permissions(layout: OpenClawLocalLayout) -> None:
+    os.chmod(layout.state_dir, 0o700)
+    for path in (layout.auth_profiles_path, layout.overlay_config_path, layout.config_path):
+        if path.exists():
+            os.chmod(path, 0o600)

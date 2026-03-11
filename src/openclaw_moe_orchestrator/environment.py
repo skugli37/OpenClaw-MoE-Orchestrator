@@ -3,11 +3,14 @@ from __future__ import annotations
 import importlib.metadata
 import json
 import platform
+import shutil
 import sys
 from pathlib import Path
 
 import torch
 
+from .llm import OllamaClientError
+from .openclaw_local import DEFAULT_OLLAMA_BASE_URL, OpenClawLocalLayout
 from .paths import RepoPaths
 
 
@@ -23,6 +26,17 @@ def collect_environment_report(paths: RepoPaths) -> dict:
         except importlib.metadata.PackageNotFoundError:
             packages[package] = None
 
+    ollama_models: list[str] | None
+    ollama_error: str | None = None
+    try:
+        from .llm import OllamaClient
+
+        ollama_models = OllamaClient(base_url=DEFAULT_OLLAMA_BASE_URL, timeout_seconds=5).list_models()
+    except (OllamaClientError, Exception) as error:
+        ollama_models = None
+        ollama_error = str(error)
+
+    openclaw_layout = OpenClawLocalLayout.discover()
     return {
         "python": sys.version.split()[0],
         "platform": platform.platform(),
@@ -35,6 +49,12 @@ def collect_environment_report(paths: RepoPaths) -> dict:
         "cuda_version": torch.version.cuda,
         "gpu_name": torch.cuda.get_device_name(0) if torch.cuda.is_available() else None,
         "gpu_count": torch.cuda.device_count(),
+        "openclaw_binary": shutil.which("openclaw"),
+        "openclaw_state_dir": str(openclaw_layout.state_dir),
+        "ollama_binary": shutil.which("ollama"),
+        "ollama_base_url": DEFAULT_OLLAMA_BASE_URL,
+        "ollama_models": ollama_models,
+        "ollama_error": ollama_error,
     }
 
 

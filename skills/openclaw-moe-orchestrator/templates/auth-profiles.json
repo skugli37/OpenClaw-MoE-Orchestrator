@@ -1,11 +1,10 @@
 {
-  "profiles": [
-    {
-      "id": "default-openai",
-      "provider": "openai",
-      "apiKeyEnvVar": "OPENAI_API_KEY",
-      "isDefault": true,
-      "baseUrl": "https://api.openai.com/v1"
+  "profiles": {
+    "ollama:default": {
+      "provider": "ollama",
+      "type": "api_key",
+      "key": "ollama-cloud"
     }
-  ]
+  },
+  "usageStats": {}
 }
