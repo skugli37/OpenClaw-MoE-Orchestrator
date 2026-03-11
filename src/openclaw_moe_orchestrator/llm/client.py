@@ -17,6 +17,17 @@ class OllamaResponse:
     eval_count: int | None = None
 
 
+@dataclass(frozen=True)
+class OllamaModelEntry:
+    name: str
+    family: str | None = None
+    parameter_size: str | None = None
+    quantization_level: str | None = None
+    remote_model: str | None = None
+    remote_host: str | None = None
+    size: int | None = None
+
+
 class OllamaClient:
     def __init__(self, base_url: str = "http://127.0.0.1:11434", timeout_seconds: float = 60.0):
         self.base_url = base_url.rstrip("/")
@@ -28,6 +39,35 @@ class OllamaClient:
         response.raise_for_status()
         payload = response.json()
         return [str(model["name"]) for model in payload.get("models", []) if model.get("name")]
+
+    def list_model_entries(self) -> list[OllamaModelEntry]:
+        response = self._session.get(f"{self.base_url}/api/tags", timeout=self.timeout_seconds)
+        response.raise_for_status()
+        payload = response.json()
+        entries: list[OllamaModelEntry] = []
+        for item in payload.get("models", []):
+            name = str(item.get("name") or "").strip()
+            if not name:
+                continue
+            details = item.get("details") or {}
+            entries.append(
+                OllamaModelEntry(
+                    name=name,
+                    family=(str(details.get("family")) if details.get("family") else None),
+                    parameter_size=(
+                        str(details.get("parameter_size")) if details.get("parameter_size") else None
+                    ),
+                    quantization_level=(
+                        str(details.get("quantization_level"))
+                        if details.get("quantization_level")
+                        else None
+                    ),
+                    remote_model=(str(item.get("remote_model")) if item.get("remote_model") else None),
+                    remote_host=(str(item.get("remote_host")) if item.get("remote_host") else None),
+                    size=(int(item["size"]) if item.get("size") is not None else None),
+                )
+            )
+        return entries
 
     def is_healthy(self) -> bool:
         try:

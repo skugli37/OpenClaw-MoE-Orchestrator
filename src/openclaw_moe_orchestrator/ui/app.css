@@ -383,6 +383,11 @@ textarea {
   color: var(--warn);
 }
 
+.mini-badge.live-only {
+  background: rgba(255, 133, 95, 0.14);
+  color: var(--accent-strong);
+}
+
 .ghost.accent {
   border-color: rgba(110, 231, 255, 0.26);
   background: rgba(110, 231, 255, 0.1);

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .exceptions import ConfigurationError
-from .llm import ModelRole, OllamaManifest, OllamaModelSpec, load_manifest
+from .llm import ModelRole, OllamaClient, OllamaManifest, OllamaModelEntry, OllamaModelSpec, load_manifest
 from .paths import RepoPaths
 
 DEFAULT_OPENCLAW_STATE_DIR = Path.home() / ".openclaw"
@@ -164,6 +164,7 @@ def reorder_manifest(
         role: {spec.model: spec for spec in manifest.models_for_role(role)}
         for role in ModelRole
     }
+    live_models = _live_model_entries_by_name(manifest.base_url)
     normalized_models: list[OllamaModelSpec] = []
     for role in ModelRole:
         role_specs = list(manifest.models_for_role(role))
@@ -174,7 +175,9 @@ def reorder_manifest(
         for model in overrides.get(role, ()):
             spec = available_by_role[role].get(model)
             if spec is None:
-                raise ConfigurationError(f"Model {model} is not configured for role {role}")
+                spec = _build_live_override_spec(role, model, live_models.get(model))
+                if spec is None:
+                    raise ConfigurationError(f"Model {model} is not configured for role {role}")
             ordered_for_role.append(spec)
             seen_models.add(model)
         remaining_specs = sorted(role_specs, key=lambda item: item.priority, reverse=True)
@@ -201,6 +204,55 @@ def reorder_manifest(
         cooldown_seconds=manifest.cooldown_seconds,
         models=tuple(normalized_models),
     )
+
+
+def _live_model_entries_by_name(base_url: str) -> dict[str, OllamaModelEntry]:
+    try:
+        entries = OllamaClient(base_url=base_url).list_model_entries()
+    except Exception:
+        return {}
+    return {entry.name: entry for entry in entries}
+
+
+def _build_live_override_spec(
+    role: ModelRole,
+    model: str,
+    live_entry: OllamaModelEntry | None,
+) -> OllamaModelSpec | None:
+    if live_entry is None:
+        return None
+    return OllamaModelSpec(
+        role=role,
+        model=model,
+        priority=1000,
+        warm=False,
+        max_concurrency=1,
+        min_context_window=_default_context_window_for_role(role),
+        capabilities=_capabilities_for_live_entry(role, live_entry),
+    )
+
+
+def _default_context_window_for_role(role: ModelRole) -> int:
+    if role is ModelRole.EMBEDDING:
+        return 8192
+    if role is ModelRole.VISION:
+        return 65536
+    return 131072
+
+
+def _capabilities_for_live_entry(role: ModelRole, live_entry: OllamaModelEntry) -> tuple[str, ...]:
+    values = ["live"]
+    if role is ModelRole.EMBEDDING:
+        values.append("embedding")
+    elif role is ModelRole.VISION:
+        values.append("vision")
+    else:
+        values.append("text")
+    if live_entry.family:
+        values.append(live_entry.family)
+    if live_entry.remote_host:
+        values.append("cloud")
+    return tuple(values)
 
 
 def _dedupe_models(models: list[str], primary_model: str) -> list[str]:

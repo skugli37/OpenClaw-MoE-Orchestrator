@@ -16,7 +16,7 @@ from openclaw_moe_orchestrator.gui import (  # noqa: E402
     build_recent_runs,
 )
 from openclaw_moe_orchestrator.exceptions import ConfigurationError  # noqa: E402
-from openclaw_moe_orchestrator.llm import ModelRole  # noqa: E402
+from openclaw_moe_orchestrator.llm import ModelRole, OllamaModelEntry  # noqa: E402
 from openclaw_moe_orchestrator.paths import RepoPaths  # noqa: E402
 
 
@@ -97,3 +97,28 @@ def test_build_model_catalog_marks_live_and_active_models(monkeypatch) -> None:
     assert catalog["defaults"]["reasoning"][0] == "gpt-oss:120b-cloud"
     assert catalog["roles"]["reasoning"][0]["available"] is True
     assert any(item["active"] for item in catalog["roles"]["reasoning"])
+
+
+def test_build_model_catalog_includes_live_only_models(monkeypatch) -> None:
+    paths = RepoPaths.discover(REPO_ROOT)
+    monkeypatch.setattr(
+        "openclaw_moe_orchestrator.gui.active_openclaw_profile",
+        lambda: {"exists": True, "primary": "ollama/qwen3-next:80b-cloud", "fallbacks": []},
+    )
+    monkeypatch.setattr(
+        "openclaw_moe_orchestrator.gui.OllamaClient.list_model_entries",
+        lambda self: [
+            OllamaModelEntry(
+                name="kimi-k2.5:cloud",
+                family="kimi",
+                remote_model="kimi-k2.5",
+                remote_host="https://ollama.com",
+                size=340,
+            )
+        ],
+    )
+
+    catalog = build_model_catalog(paths)
+
+    assert any(item["model"] == "kimi-k2.5:cloud" for item in catalog["roles"]["reasoning"])
+    assert any(item["source"] == "live" for item in catalog["roles"]["reasoning"])

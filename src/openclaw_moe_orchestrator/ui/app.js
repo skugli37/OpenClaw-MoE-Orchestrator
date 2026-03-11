@@ -226,7 +226,7 @@ function renderRoleCard(role, catalog) {
   const currentValue = selected[0] || "";
   const options = specs
     .map((spec) => {
-      const availability = spec.available ? "live" : "manifest";
+      const availability = spec.source === "live" ? "live-only" : spec.available ? "live" : "manifest";
       return `
         <option value="${escapeHtml(spec.model)}" ${spec.model === currentValue ? "selected" : ""}>
           ${escapeHtml(spec.model)} · ${availability}
@@ -258,6 +258,7 @@ function renderRoleCard(role, catalog) {
             <div class="catalog-meta">${escapeHtml((spec.capabilities || []).join(" · ") || "no capabilities")}</div>
           </div>
           <div class="catalog-flags">
+            <span class="mini-badge ${spec.source === "live" ? "live-only" : "ghost"}">${escapeHtml(spec.source || "manifest")}</span>
             <span class="mini-badge ${spec.available ? "live" : "ghost"}">${spec.available ? "live" : "manifest"}</span>
             ${spec.active ? '<span class="mini-badge active">active</span>' : ""}
           </div>
