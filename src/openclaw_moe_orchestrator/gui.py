@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import subprocess
+import sys
 import threading
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
@@ -18,7 +21,6 @@ from .exceptions import ConfigurationError
 from .llm import ModelRole, OllamaClient, load_manifest
 from .openclaw_local import collect_openclaw_local_status, install_openclaw_local_bundle
 from .paths import RepoPaths
-from .pipelines import run_integrated_orchestrator, run_multi_asset_report, run_single_asset_mission
 
 LOGGER = logging.getLogger(__name__)
 
@@ -216,22 +218,62 @@ def _role_model_overrides_from_payload(payload: dict[str, Any]) -> dict[ModelRol
 
 
 def _run_workflow(paths: RepoPaths, workflow: str, payload: dict[str, Any]) -> dict[str, Any]:
-    if workflow == "run-mission":
-        result = run_single_asset_mission(paths)
-        return {"outputs": {key: str(value) for key, value in result.items()}}
-    if workflow == "run-multi-report":
-        result = run_multi_asset_report(paths)
-        return {"outputs": {key: str(value) for key, value in result.items()}}
-    if workflow == "run-integrated":
-        result = run_integrated_orchestrator(paths)
-        return {"outputs": result}
     if workflow == "install-openclaw-cloud":
         result = install_openclaw_local_bundle(
             paths,
             role_model_overrides=_role_model_overrides_from_payload(payload),
         )
         return {"outputs": result}
+    if workflow in {"run-mission", "run-multi-report", "run-integrated"}:
+        return _run_subprocess_workflow(paths, workflow)
     raise ConfigurationError(f"Unsupported GUI workflow: {workflow}")
+
+
+def _run_subprocess_workflow(paths: RepoPaths, workflow: str) -> dict[str, Any]:
+    command = [
+        sys.executable,
+        "-m",
+        "openclaw_moe_orchestrator",
+        workflow,
+    ]
+    env = os.environ.copy()
+    env.setdefault("TORCHDYNAMO_DISABLE", "1")
+    completed = subprocess.run(
+        command,
+        cwd=paths.repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        stderr = completed.stderr.strip()
+        stdout = completed.stdout.strip()
+        raise RuntimeError(stderr or stdout or f"{workflow} exited with code {completed.returncode}")
+
+    stdout = completed.stdout.strip()
+    payload: dict[str, Any] = {
+        "command": command,
+        "stdout": stdout,
+        "stderr": completed.stderr.strip(),
+    }
+    if workflow == "run-integrated" and stdout:
+        payload["outputs"] = _extract_json_object(stdout)
+    return payload
+
+
+def _extract_json_object(raw_output: str) -> dict[str, Any]:
+    lines = [line.strip() for line in raw_output.splitlines() if line.strip()]
+    for candidate in reversed(lines):
+        if not candidate.startswith("{"):
+            continue
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    raise ValueError("No JSON object found in subprocess output")
 
 
 def _start_job(paths: RepoPaths, jobs: GuiJobStore, workflow: str, payload: dict[str, Any]) -> GuiJob:

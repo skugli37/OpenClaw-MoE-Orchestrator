@@ -75,7 +75,7 @@ def main() -> int:
     configure_logging()
     parser = build_parser()
     args = parser.parse_args()
-    paths = RepoPaths.discover(args.repo_root)
+    paths = RepoPaths.discover(Path(args.repo_root) if args.repo_root else None)
     paths.ensure_directories()
 
     if args.command == "run-mission":
