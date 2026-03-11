@@ -11,9 +11,9 @@ The MoE model marked 20 observations as anomalous at the 95th percentile of reco
 - Input features: normalized close, volume, returns, rolling volatility
 
 ## Findings
-- Highest anomaly date: 2026-02-06
-- BTC close at that point: $70,555.39
-- Maximum reconstruction error: 12.061468
+- Highest anomaly date: 2026-02-05
+- BTC close at that point: $62,702.10
+- Maximum reconstruction error: 8.723581
 
 ## Visual Evidence
-The anomaly chart is saved under `artifacts/anomaly_chart.png`.
+The anomaly chart is saved under `/home/kugli/OpenClaw-MoE-Orchestrator/artifacts/runs/mission-20260311T110822Z-aea545ba/outputs/anomaly_chart.png`.

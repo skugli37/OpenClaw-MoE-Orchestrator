@@ -202,7 +202,7 @@ def run_single_asset_mission(paths: RepoPaths, config: SingleAssetConfig | None 
         output_path=run_paths.outputs_dir / "anomaly_results.csv",
     )
     chart_path = visualize_single_asset(results_path, run_paths.outputs_dir / "anomaly_chart.png")
-    report_text = build_single_asset_report(results_path)
+    report_text = build_single_asset_report(results_path, chart_path)
     report_path = run_paths.outputs_dir / "mission_report.md"
     report_path.write_text(report_text)
     latest_report_path = paths.docs_dir / "mission_report.md"
@@ -247,7 +247,7 @@ def run_multi_asset_report(paths: RepoPaths, config: MultiAssetConfig | None = N
         output_path=run_paths.outputs_dir / "multi_asset_anomalies.csv",
     )
     chart_path = visualize_multi_asset(results_path, run_paths.outputs_dir / "multi_asset_anomaly_chart.png")
-    report_text = build_multi_asset_report(results_path)
+    report_text = build_multi_asset_report(results_path, chart_path)
     report_path = run_paths.outputs_dir / "multi_asset_report.md"
     report_path.write_text(report_text)
     latest_report_path = paths.docs_dir / "multi_asset_report.md"

@@ -3,10 +3,11 @@ from pathlib import Path
 import pandas as pd
 
 
-def build_single_asset_report(results_path: Path) -> str:
+def build_single_asset_report(results_path: Path, chart_path: Path | None = None) -> str:
     results_df = pd.read_csv(results_path, parse_dates=["Date"])
     anomalies = results_df[results_df["Is_Anomaly"]]
     top_anomaly = results_df.loc[results_df["Reconstruction_Error"].idxmax()]
+    chart_path = chart_path or Path("artifacts/anomaly_chart.png")
 
     return f"""# OpenClaw Intelligence Report: BTC Anomaly Analysis
 
@@ -26,14 +27,15 @@ The MoE model marked {len(anomalies)} observations as anomalous at the 95th perc
 - Maximum reconstruction error: {top_anomaly["Reconstruction_Error"]:.6f}
 
 ## Visual Evidence
-The anomaly chart is saved under `artifacts/anomaly_chart.png`.
+The anomaly chart is saved under `{chart_path}`.
 """
 
 
-def build_multi_asset_report(results_path: Path) -> str:
+def build_multi_asset_report(results_path: Path, chart_path: Path | None = None) -> str:
     results_df = pd.read_csv(results_path, parse_dates=["Date"])
     anomalies = results_df[results_df["is_anomaly"]]
     top_anomaly = results_df.loc[results_df["reconstruction_error"].idxmax()]
+    chart_path = chart_path or Path("artifacts/multi_asset_anomaly_chart.png")
 
     return f"""# OpenClaw Multi-Asset Correlation Report
 
@@ -55,5 +57,5 @@ The MoE model marked {len(anomalies)} observations as correlation anomalies at t
 - SOL normalized return: {top_anomaly["SOL-USD"]:.6f}
 
 ## Visual Evidence
-The correlation anomaly chart is saved under `artifacts/multi_asset_anomaly_chart.png`.
+The correlation anomaly chart is saved under `{chart_path}`.
 """
