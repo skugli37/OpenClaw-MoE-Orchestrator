@@ -197,7 +197,10 @@ def test_run_integrated_orchestrator_raises_when_no_anomalies_are_found(load_mod
     )
     engine = FakeEngine()
     shutdown = {"called": False}
+    run_paths = paths.create_run_paths("integrated")
+    bundled_dataset_path = run_paths.inputs_dir / "multi_asset_returns.csv"
 
+    monkeypatch.setattr(module.RepoPaths, "create_run_paths", lambda self, workflow_name: run_paths)
     monkeypatch.setattr(module, "prepare_multi_asset_data", lambda paths, config=None: paths.processed_data_dir / "multi_asset_returns.csv")
     monkeypatch.setattr(module, "load_multi_asset_dataset", lambda dataset_path: data.copy())
     monkeypatch.setattr(module, "load_runtime_config", lambda config_path, batch_size: {"batch_size": batch_size})
@@ -207,6 +210,9 @@ def test_run_integrated_orchestrator_raises_when_no_anomalies_are_found(load_mod
     monkeypatch.setattr(module, "torch", FakeTorchRuntime)
     monkeypatch.setattr(module.nn, "MSELoss", FakeMSELoss)
     monkeypatch.setattr(module.deepspeed, "initialize", lambda **kwargs: (engine, None, None, None))
+    monkeypatch.setattr(module, "_copy_dataset_to_bundle", lambda source_path, run_paths: bundled_dataset_path)
+    monkeypatch.setattr(module, "_multi_asset_runtime_snapshot", lambda paths, config, dataset_path: {"runtime_config": {"train_batch_size": 1}})
+    monkeypatch.setattr(module, "file_sha256", lambda path: "sha256")
     monkeypatch.setattr(module, "shutdown_distributed", lambda: shutdown.__setitem__("called", True))
 
     with pytest.raises(module.ExternalSignalError, match="found no anomalies"):
@@ -234,6 +240,8 @@ def test_run_integrated_orchestrator_returns_top_anomaly_with_news(load_module, 
     )
     engine = FakeEngine()
     shutdown = {"called": False}
+    run_paths = paths.create_run_paths("integrated")
+    bundled_dataset_path = run_paths.inputs_dir / "multi_asset_returns.csv"
 
     def anomalous_reconstruction(inputs):
         adjusted = inputs.data.copy()
@@ -242,6 +250,7 @@ def test_run_integrated_orchestrator_returns_top_anomaly_with_news(load_module, 
 
     engine.module = anomalous_reconstruction
 
+    monkeypatch.setattr(module.RepoPaths, "create_run_paths", lambda self, workflow_name: run_paths)
     monkeypatch.setattr(module, "prepare_multi_asset_data", lambda paths, config=None: paths.processed_data_dir / "multi_asset_returns.csv")
     monkeypatch.setattr(module, "load_multi_asset_dataset", lambda dataset_path: data.copy())
     monkeypatch.setattr(module, "load_runtime_config", lambda config_path, batch_size: {"batch_size": batch_size})
@@ -252,6 +261,9 @@ def test_run_integrated_orchestrator_returns_top_anomaly_with_news(load_module, 
     monkeypatch.setattr(module.nn, "MSELoss", FakeMSELoss)
     monkeypatch.setattr(module.deepspeed, "initialize", lambda **kwargs: (engine, None, None, None))
     monkeypatch.setattr(module, "get_live_news", lambda asset_name: f"{asset_name} breakout headline")
+    monkeypatch.setattr(module, "_copy_dataset_to_bundle", lambda source_path, run_paths: bundled_dataset_path)
+    monkeypatch.setattr(module, "_multi_asset_runtime_snapshot", lambda paths, config, dataset_path: {"runtime_config": {"train_batch_size": 1}})
+    monkeypatch.setattr(module, "file_sha256", lambda path: "sha256")
     monkeypatch.setattr(module, "shutdown_distributed", lambda: shutdown.__setitem__("called", True))
 
     result = module.run_integrated_orchestrator(paths)
@@ -260,4 +272,7 @@ def test_run_integrated_orchestrator_returns_top_anomaly_with_news(load_module, 
     assert result["date"] == "2025-03-04"
     assert result["news"] == "BTC breakout headline"
     assert result["score"] == pytest.approx(4.083333333333333)
+    assert "artifacts/runs/integrated-" in result["bundle_dir"]
+    assert result["result_path"].endswith("/outputs/integrated_result.json")
+    assert result["metadata_path"].endswith("/outputs/integrated_run_metadata.json")
     assert shutdown["called"] is True

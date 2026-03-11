@@ -31,17 +31,17 @@ The runtime is fail-fast about malformed datasets and missing configs. It does n
 
 ## Install
 
-Use the local virtual environment and install the package in editable mode:
+Use the local virtual environment and install through the committed lock file:
 
 ```bash
-python -m pip install -e ".[dev]"
+make install
 ```
 
 If you are already working inside the repository `.venv`, install only the missing tooling:
 
 ```bash
 source .venv/bin/activate
-python -m pip install -e ".[dev]"
+make install
 ```
 
 ## Commands
@@ -81,6 +81,13 @@ make test
 make audit
 ```
 
+## Locked Dependencies
+
+Committed lock files now define the resolved dependency graph used by local installs, CI, and container builds:
+
+- `requirements/production.lock`
+- `requirements/dev.lock`
+
 ## Container
 
 The repository now includes a production-oriented [Dockerfile](/home/kugli/OpenClaw-MoE-Orchestrator/Dockerfile) for containerized packaging of the CLI runtime:
@@ -92,24 +99,30 @@ docker run --rm openclaw-moe-orchestrator doctor
 
 ## Outputs
 
-Single-asset mission writes:
+Single-asset mission writes a run bundle under `artifacts/runs/<run-id>/` plus the latest operator report in `docs/mission_report.md`:
 
 - `data/processed/market_data_norm.csv`
-- `artifacts/anomaly_results.csv`
-- `artifacts/anomaly_chart.png`
-- `artifacts/mission_run_metadata.json`
+- `artifacts/runs/<run-id>/inputs/market_data_norm.csv`
+- `artifacts/runs/<run-id>/outputs/anomaly_results.csv`
+- `artifacts/runs/<run-id>/outputs/anomaly_chart.png`
+- `artifacts/runs/<run-id>/outputs/mission_run_metadata.json`
+- `artifacts/runs/<run-id>/outputs/mission_report.md`
 - `docs/mission_report.md`
 
-Integrated orchestrator writes:
+Integrated orchestrator writes a run bundle under `artifacts/runs/<run-id>/`:
 
 - `data/processed/multi_asset_returns.csv`
-- `artifacts/integrated_run_metadata.json`
+- `artifacts/runs/<run-id>/inputs/multi_asset_returns.csv`
+- `artifacts/runs/<run-id>/outputs/integrated_result.json`
+- `artifacts/runs/<run-id>/outputs/integrated_run_metadata.json`
 
-Multi-asset correlation detector writes:
+Multi-asset correlation detector writes a run bundle under `artifacts/runs/<run-id>/` plus the latest operator report in `docs/multi_asset_report.md`:
 
-- `artifacts/multi_asset_anomalies.csv`
-- `artifacts/multi_asset_anomaly_chart.png`
-- `artifacts/multi_asset_report_metadata.json`
+- `artifacts/runs/<run-id>/inputs/multi_asset_returns.csv`
+- `artifacts/runs/<run-id>/outputs/multi_asset_anomalies.csv`
+- `artifacts/runs/<run-id>/outputs/multi_asset_anomaly_chart.png`
+- `artifacts/runs/<run-id>/outputs/multi_asset_report_metadata.json`
+- `artifacts/runs/<run-id>/outputs/multi_asset_report.md`
 - `docs/multi_asset_report.md`
 
 ## CI

@@ -1,5 +1,19 @@
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
+from uuid import uuid4
+
+
+@dataclass(frozen=True)
+class RunPaths:
+    root: Path
+    inputs_dir: Path
+    outputs_dir: Path
+    logs_dir: Path
+
+    def ensure_directories(self) -> None:
+        for directory in (self.root, self.inputs_dir, self.outputs_dir, self.logs_dir):
+            directory.mkdir(parents=True, exist_ok=True)
 
 
 @dataclass(frozen=True)
@@ -35,5 +49,18 @@ class RepoPaths:
             self.processed_data_dir,
             self.artifacts_dir,
             self.logs_dir,
+            self.artifacts_dir / "runs",
         ):
             directory.mkdir(parents=True, exist_ok=True)
+
+    def create_run_paths(self, workflow_name: str) -> RunPaths:
+        run_id = f"{workflow_name}-{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}-{uuid4().hex[:8]}"
+        root = self.artifacts_dir / "runs" / run_id
+        run_paths = RunPaths(
+            root=root,
+            inputs_dir=root / "inputs",
+            outputs_dir=root / "outputs",
+            logs_dir=root / "logs",
+        )
+        run_paths.ensure_directories()
+        return run_paths

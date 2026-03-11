@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml README.md ./
+COPY requirements ./requirements
 COPY src ./src
 COPY scripts ./scripts
 COPY configs ./configs
@@ -20,6 +21,7 @@ COPY docs ./docs
 COPY skills ./skills
 
 RUN python -m pip install --upgrade pip && \
-    python -m pip install .
+    DS_BUILD_OPS=0 python -m pip install -r requirements/production.lock && \
+    DS_BUILD_OPS=0 python -m pip install . --no-deps
 
 ENTRYPOINT ["openclaw-moe"]

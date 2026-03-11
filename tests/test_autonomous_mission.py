@@ -97,24 +97,36 @@ def test_run_single_asset_mission_writes_report_and_returns_artifacts(load_modul
     paths = module.RepoPaths.discover(tmp_path)
     paths.ensure_directories()
 
-    results_path = paths.artifacts_dir / "anomaly_results.csv"
-    chart_path = paths.artifacts_dir / "anomaly_chart.png"
-    metadata_path = paths.artifacts_dir / "mission_run_metadata.json"
+    run_paths = paths.create_run_paths("mission")
+    results_path = run_paths.outputs_dir / "anomaly_results.csv"
+    chart_path = run_paths.outputs_dir / "anomaly_chart.png"
+    metadata_path = run_paths.outputs_dir / "mission_run_metadata.json"
+    bundled_dataset_path = run_paths.inputs_dir / "market_data_norm.csv"
+    (paths.processed_data_dir / "market_data_norm.csv").write_text("date,close\n")
 
-    monkeypatch.setattr(module, "run_single_asset_detection", lambda paths, config=None: results_path)
+    monkeypatch.setattr(module.RepoPaths, "create_run_paths", lambda self, workflow_name: run_paths)
+    monkeypatch.setattr(module, "run_single_asset_detection", lambda paths, config=None, output_path=None: results_path)
     monkeypatch.setattr(module, "visualize_single_asset", lambda results, output: chart_path)
     monkeypatch.setattr(module, "build_single_asset_report", lambda results: "# report")
     monkeypatch.setattr(module, "write_run_metadata", lambda path, payload: metadata_path)
     monkeypatch.setattr(module, "git_revision", lambda repo_root: "deadbeef")
+    monkeypatch.setattr(module, "_copy_dataset_to_bundle", lambda source_path, run_paths: bundled_dataset_path)
+    monkeypatch.setattr(module, "_single_asset_runtime_snapshot", lambda paths, config, dataset_path: {"runtime_config": {"train_batch_size": 1}})
+    monkeypatch.setattr(module, "file_sha256", lambda path: "sha256")
 
     outputs = module.run_single_asset_mission(paths)
 
     assert outputs == {
         "results": results_path,
         "chart": chart_path,
-        "report": paths.docs_dir / "mission_report.md",
+        "report": run_paths.outputs_dir / "mission_report.md",
         "metadata": metadata_path,
     }
+    assert outputs["results"].parent.parent == run_paths.root
+    assert outputs["report"].parent.parent == run_paths.root
+    assert outputs["metadata"].parent.parent == run_paths.root
+    assert bundled_dataset_path.parent.name == "inputs"
+    assert (run_paths.outputs_dir / "mission_report.md").read_text() == "# report"
     assert (paths.docs_dir / "mission_report.md").read_text() == "# report"
 
 
@@ -127,22 +139,34 @@ def test_run_multi_asset_report_writes_report_and_returns_artifacts(load_module,
     paths = module.RepoPaths.discover(tmp_path)
     paths.ensure_directories()
 
-    results_path = paths.artifacts_dir / "multi_asset_anomalies.csv"
-    chart_path = paths.artifacts_dir / "multi_asset_anomaly_chart.png"
-    metadata_path = paths.artifacts_dir / "multi_asset_report_metadata.json"
+    run_paths = paths.create_run_paths("multi-asset-report")
+    results_path = run_paths.outputs_dir / "multi_asset_anomalies.csv"
+    chart_path = run_paths.outputs_dir / "multi_asset_anomaly_chart.png"
+    metadata_path = run_paths.outputs_dir / "multi_asset_report_metadata.json"
+    bundled_dataset_path = run_paths.inputs_dir / "multi_asset_returns.csv"
+    (paths.processed_data_dir / "multi_asset_returns.csv").write_text("date,btc\n")
 
-    monkeypatch.setattr(module, "run_multi_asset_detection", lambda paths, config=None: results_path)
+    monkeypatch.setattr(module.RepoPaths, "create_run_paths", lambda self, workflow_name: run_paths)
+    monkeypatch.setattr(module, "run_multi_asset_detection", lambda paths, config=None, output_path=None: results_path)
     monkeypatch.setattr(module, "visualize_multi_asset", lambda results, output: chart_path)
     monkeypatch.setattr(module, "build_multi_asset_report", lambda results: "# multi report")
     monkeypatch.setattr(module, "write_run_metadata", lambda path, payload: metadata_path)
     monkeypatch.setattr(module, "git_revision", lambda repo_root: "deadbeef")
+    monkeypatch.setattr(module, "_copy_dataset_to_bundle", lambda source_path, run_paths: bundled_dataset_path)
+    monkeypatch.setattr(module, "_multi_asset_runtime_snapshot", lambda paths, config, dataset_path: {"runtime_config": {"train_batch_size": 1}})
+    monkeypatch.setattr(module, "file_sha256", lambda path: "sha256")
 
     outputs = module.run_multi_asset_report(paths)
 
     assert outputs == {
         "results": results_path,
         "chart": chart_path,
-        "report": paths.docs_dir / "multi_asset_report.md",
+        "report": run_paths.outputs_dir / "multi_asset_report.md",
         "metadata": metadata_path,
     }
+    assert outputs["results"].parent.parent == run_paths.root
+    assert outputs["report"].parent.parent == run_paths.root
+    assert outputs["metadata"].parent.parent == run_paths.root
+    assert bundled_dataset_path.parent.name == "inputs"
+    assert (run_paths.outputs_dir / "multi_asset_report.md").read_text() == "# multi report"
     assert (paths.docs_dir / "multi_asset_report.md").read_text() == "# multi report"

@@ -12,7 +12,7 @@ The MoE model marked 22 observations as correlation anomalies at the 95th percen
 
 ## Findings
 - Highest anomaly date: 2025-01-18
-- Maximum reconstruction error: 0.810351
+- Maximum reconstruction error: 1.292100
 - BTC normalized return: 0.000343
 - ETH normalized return: -1.195108
 - SOL normalized return: 4.278170

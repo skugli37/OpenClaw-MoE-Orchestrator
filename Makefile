@@ -4,16 +4,14 @@ PIP := $(PYTHON) -m pip
 PYTEST := $(PYTHON) -m pytest
 RUFF := $(PYTHON) -m ruff
 
-INSTALL_GROUP ?= dev
-
 .DEFAULT_GOAL := help
 
 .PHONY: help install install-ci lint test audit run run-multi-report run-integrated doctor clean
 
 help:
 	@printf '%s\n' \
-		'install          Create $(VENV) and install the package with runtime + dev dependencies' \
-		'install-ci       Create $(VENV) and install only CI tooling' \
+		'install          Create $(VENV) and install the package from requirements/dev.lock' \
+		'install-ci       Create $(VENV) and install the CI/test environment from requirements/dev.lock' \
 		'lint             Run ruff across src, scripts, and CI-owned tests' \
 		'test             Run the full pytest suite' \
 		'audit            Run secret scan and dependency audit locally' \
@@ -27,12 +25,14 @@ $(PYTHON):
 	python3 -m venv $(VENV)
 
 install: $(PYTHON)
-	PIP_DISABLE_PIP_VERSION_CHECK=1 DS_BUILD_OPS=0 $(PIP) install --upgrade pip
-	PIP_DISABLE_PIP_VERSION_CHECK=1 DS_BUILD_OPS=0 $(PIP) install -e ".[$(INSTALL_GROUP)]"
+	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PIP) install --upgrade pip
+	PIP_DISABLE_PIP_VERSION_CHECK=1 DS_BUILD_OPS=0 $(PIP) install -r requirements/dev.lock
+	PIP_DISABLE_PIP_VERSION_CHECK=1 DS_BUILD_OPS=0 $(PIP) install -e . --no-deps
 
 install-ci: $(PYTHON)
 	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PIP) install --upgrade pip
-	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PIP) install pytest==9.0.2 ruff==0.15.5 numpy==2.3.5 pandas==3.0.1
+	PIP_DISABLE_PIP_VERSION_CHECK=1 DS_BUILD_OPS=0 $(PIP) install -r requirements/dev.lock
+	PIP_DISABLE_PIP_VERSION_CHECK=1 DS_BUILD_OPS=0 $(PIP) install -e . --no-deps
 
 lint: install-ci
 	PYTHONPATH=src $(RUFF) check src scripts tests .github/tests
@@ -43,10 +43,7 @@ test: install-ci
 audit: install-ci
 	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PIP) install detect-secrets==1.5.0 pip-audit==2.9.0
 	git ls-files -z | xargs -0 detect-secrets-hook --exclude-files 'skills/openclaw-moe-orchestrator/templates/auth-profiles.json'
-	tmp_requirements=$$(mktemp); \
-	$(PYTHON) -c 'import sys, tomllib; from pathlib import Path; deps = tomllib.loads(Path("pyproject.toml").read_text())["project"]["dependencies"]; Path(sys.argv[1]).write_text(chr(10).join(deps) + chr(10))' "$$tmp_requirements"; \
-	$(PYTHON) -m pip_audit -r "$$tmp_requirements"; \
-	rm -f "$$tmp_requirements"
+	$(PYTHON) -m pip_audit -r requirements/production.lock
 
 run: install
 	$(VENV)/bin/openclaw-moe run-mission
