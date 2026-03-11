@@ -1,6 +1,8 @@
+import os
 import sys
 from pathlib import Path
 
+os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
 
 from openclaw_moe_orchestrator.data_pipeline import prepare_market_data

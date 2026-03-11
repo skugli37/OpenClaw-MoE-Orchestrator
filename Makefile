@@ -8,7 +8,7 @@ INSTALL_GROUP ?= dev
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install install-ci lint test run run-multi-report run-integrated doctor clean
+.PHONY: help install install-ci lint test audit run run-multi-report run-integrated doctor clean
 
 help:
 	@printf '%s\n' \
@@ -16,6 +16,7 @@ help:
 		'install-ci       Create $(VENV) and install only CI tooling' \
 		'lint             Run ruff across src, scripts, and CI-owned tests' \
 		'test             Run the full pytest suite' \
+		'audit            Run secret scan and dependency audit locally' \
 		'run              Run the single-asset mission workflow' \
 		'run-multi-report Run the multi-asset detection + reporting workflow' \
 		'run-integrated   Run the integrated MoE + news orchestrator' \
@@ -38,6 +39,14 @@ lint: install-ci
 
 test: install-ci
 	PYTHONPATH=src MPLBACKEND=Agg $(PYTEST) tests .github/tests
+
+audit: install-ci
+	PIP_DISABLE_PIP_VERSION_CHECK=1 $(PIP) install detect-secrets==1.5.0 pip-audit==2.9.0
+	git ls-files -z | xargs -0 detect-secrets-hook --exclude-files 'skills/openclaw-moe-orchestrator/templates/auth-profiles.json'
+	tmp_requirements=$$(mktemp); \
+	$(PYTHON) -c 'import sys, tomllib; from pathlib import Path; deps = tomllib.loads(Path("pyproject.toml").read_text())["project"]["dependencies"]; Path(sys.argv[1]).write_text(chr(10).join(deps) + chr(10))' "$$tmp_requirements"; \
+	$(PYTHON) -m pip_audit -r "$$tmp_requirements"; \
+	rm -f "$$tmp_requirements"
 
 run: install
 	$(VENV)/bin/openclaw-moe run-mission

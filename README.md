@@ -78,6 +78,16 @@ Lint and tests:
 ```bash
 make lint
 make test
+make audit
+```
+
+## Container
+
+The repository now includes a production-oriented [Dockerfile](/home/kugli/OpenClaw-MoE-Orchestrator/Dockerfile) for containerized packaging of the CLI runtime:
+
+```bash
+docker build -t openclaw-moe-orchestrator .
+docker run --rm openclaw-moe-orchestrator doctor
 ```
 
 ## Outputs
@@ -109,10 +119,15 @@ GitHub Actions runs:
 - lint via `ruff`
 - pytest suite
 - packaging metadata smoke checks
+- secret scanning
+- dependency auditing
+- tag-driven release packaging
 
 Workflow file:
 
 - `.github/workflows/ci.yml`
+- `.github/workflows/security.yml`
+- `.github/workflows/release.yml`
 
 ## Notes
 

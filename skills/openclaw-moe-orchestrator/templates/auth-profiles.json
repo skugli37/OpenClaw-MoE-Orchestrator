@@ -3,7 +3,7 @@
     {
       "id": "default-openai",
       "provider": "openai",
-      "apiKey": "sk-not-real-but-will-trigger-env-check",
+      "apiKeyEnvVar": "OPENAI_API_KEY",
       "isDefault": true,
       "baseUrl": "https://api.openai.com/v1"
     }

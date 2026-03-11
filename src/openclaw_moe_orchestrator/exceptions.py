@@ -12,3 +12,7 @@ class DataValidationError(OpenClawError):
 
 class ExternalSignalError(OpenClawError):
     """Raised when external signal providers do not return verifiable data."""
+
+
+class ResourceContentionError(OpenClawError):
+    """Raised when an exclusive runtime resource cannot be acquired in time."""

@@ -13,7 +13,7 @@ The MoE model marked 20 observations as anomalous at the 95th percentile of reco
 ## Findings
 - Highest anomaly date: 2026-02-06
 - BTC close at that point: $70,555.39
-- Maximum reconstruction error: 11.611484
+- Maximum reconstruction error: 13.941645
 
 ## Visual Evidence
 The anomaly chart is saved under `artifacts/anomaly_chart.png`.

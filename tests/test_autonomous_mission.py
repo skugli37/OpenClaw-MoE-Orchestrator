@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import types
+from contextlib import nullcontext
 
 
 def _pipeline_import_modules():
@@ -32,6 +33,7 @@ def _pipeline_import_modules():
     reports_module.build_multi_asset_report = lambda path: "multi-report"
 
     runtime_module = types.ModuleType("openclaw_moe_orchestrator.runtime")
+    runtime_module.gpu_execution_lock = lambda *args, **kwargs: nullcontext()
     runtime_module.load_runtime_config = lambda *args, **kwargs: {}
     runtime_module.prepare_distributed_env = lambda: None
     runtime_module.prepare_model_and_optimizer = lambda *args, **kwargs: (None, None, None)
