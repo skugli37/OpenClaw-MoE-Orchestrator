@@ -41,31 +41,38 @@
 
         <article class="panel action-panel">
           <div class="panel-head">
-            <h2>Execution</h2>
-            <span class="panel-note">One-click jobs</span>
+            <h2>Operator</h2>
+            <span class="panel-note">Live model routing and one-click jobs</span>
           </div>
-          <div class="action-stack">
-            <button class="action-btn" data-workflow="run-mission">Run Mission</button>
-            <button class="action-btn" data-workflow="run-multi-report">Run Multi-Asset</button>
-            <button class="action-btn" data-workflow="run-integrated">Run Integrated</button>
-            <button class="action-btn secondary" data-workflow="install-openclaw-cloud">
-              Rebuild OpenClaw Config
-            </button>
+          <div class="operator-layout">
+            <section class="config-well">
+              <div class="panel-subhead">
+                <h3>OpenClaw Model Matrix</h3>
+                <p class="panel-note">Choose ordered failover chains by role. No manual config editing.</p>
+              </div>
+              <div class="model-toolbar">
+                <button class="ghost" id="reset-models" type="button">Reset To Manifest</button>
+                <button class="ghost accent" id="apply-models" type="button">Apply To OpenClaw</button>
+              </div>
+              <div class="catalog-status" id="catalog-status"></div>
+              <div class="role-grid" id="role-grid"></div>
+            </section>
+
+            <section class="execution-well">
+              <div class="panel-subhead">
+                <h3>Execution</h3>
+                <p class="panel-note">Run the pipelines after config is in place.</p>
+              </div>
+              <div class="action-stack">
+                <button class="action-btn" data-workflow="run-mission">Run Mission</button>
+                <button class="action-btn" data-workflow="run-multi-report">Run Multi-Asset</button>
+                <button class="action-btn" data-workflow="run-integrated">Run Integrated</button>
+                <button class="action-btn secondary" data-workflow="install-openclaw-cloud">
+                  Rebuild OpenClaw Config
+                </button>
+              </div>
+            </section>
           </div>
-          <form class="override-form" id="override-form">
-            <label>
-              <span>Reasoning Models</span>
-              <textarea id="reasoning-models" placeholder="qwen3-next:80b-cloud&#10;gpt-oss:120b-cloud"></textarea>
-            </label>
-            <label>
-              <span>Coding Models</span>
-              <textarea id="coding-models" placeholder="qwen3-coder-next:cloud"></textarea>
-            </label>
-            <label>
-              <span>General Models</span>
-              <textarea id="general-models" placeholder="gpt-oss:120b-cloud"></textarea>
-            </label>
-          </form>
         </article>
 
         <article class="panel profile-panel">

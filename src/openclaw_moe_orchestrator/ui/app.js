@@ -1,5 +1,15 @@
 const dashboardUrl = "/api/dashboard";
 
+const ROLE_ORDER = ["reasoning", "coding", "general", "vision", "embedding", "safety"];
+const ROLE_LABELS = {
+  reasoning: "Reasoning",
+  coding: "Coding",
+  general: "General",
+  vision: "Vision",
+  embedding: "Embedding",
+  safety: "Safety",
+};
+
 const els = {
   heroStatus: document.getElementById("hero-status"),
   metricGrid: document.getElementById("metric-grid"),
@@ -8,18 +18,53 @@ const els = {
   runsFeed: document.getElementById("runs-feed"),
   refresh: document.getElementById("refresh-dashboard"),
   buttons: Array.from(document.querySelectorAll("[data-workflow]")),
-  reasoningModels: document.getElementById("reasoning-models"),
-  codingModels: document.getElementById("coding-models"),
-  generalModels: document.getElementById("general-models"),
+  resetModels: document.getElementById("reset-models"),
+  applyModels: document.getElementById("apply-models"),
+  roleGrid: document.getElementById("role-grid"),
+  catalogStatus: document.getElementById("catalog-status"),
 };
 
 let pollHandle = null;
+let latestSnapshot = null;
+let roleSelections = {};
 
-function linesToList(value) {
-  return value
-    .split("\n")
-    .map((item) => item.trim())
-    .filter(Boolean);
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function getRoleDefaults(catalog, role) {
+  return [...(catalog?.defaults?.[role] || [])];
+}
+
+function getRoleSpecs(catalog, role) {
+  return [...(catalog?.roles?.[role] || [])];
+}
+
+function initRoleSelections(catalog) {
+  ROLE_ORDER.forEach((role) => {
+    const existing = roleSelections[role];
+    if (existing?.length) {
+      return;
+    }
+    roleSelections[role] = getRoleDefaults(catalog, role);
+  });
+}
+
+function buildInstallPayload() {
+  return {
+    workflow: "install-openclaw-cloud",
+    reasoning_models: roleSelections.reasoning || [],
+    coding_models: roleSelections.coding || [],
+    general_models: roleSelections.general || [],
+    vision_models: roleSelections.vision || [],
+    embedding_models: roleSelections.embedding || [],
+    safety_models: roleSelections.safety || [],
+  };
 }
 
 async function fetchDashboard() {
@@ -30,17 +75,11 @@ async function fetchDashboard() {
   return response.json();
 }
 
-async function submitWorkflow(workflow) {
-  const payload = { workflow };
-  if (workflow === "install-openclaw-cloud") {
-    payload.reasoning_models = linesToList(els.reasoningModels.value);
-    payload.coding_models = linesToList(els.codingModels.value);
-    payload.general_models = linesToList(els.generalModels.value);
-  }
+async function submitWorkflow(workflow, payload = {}) {
   const response = await fetch("/api/jobs", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ workflow, ...payload }),
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: "request failed" }));
@@ -51,20 +90,22 @@ async function submitWorkflow(workflow) {
 
 function renderHero(snapshot) {
   const active = snapshot.active_profile || {};
-  const models = snapshot.environment?.ollama_models || [];
+  const catalog = snapshot.model_catalog || {};
+  const models = catalog.live_models || [];
   els.heroStatus.innerHTML = `
     <div class="status-pill">${active.primary ? "Live" : "Needs Setup"}</div>
     <p><strong>${models.length}</strong> models visible through Ollama.</p>
-    <p class="mono">${active.primary || "No active primary configured"}</p>
+    <p class="mono">${escapeHtml(active.primary || "No active primary configured")}</p>
   `;
 }
 
 function renderMetrics(snapshot) {
   const environment = snapshot.environment || {};
+  const catalog = snapshot.model_catalog || {};
   const metrics = [
     ["Python", environment.python || "n/a"],
     ["GPU", environment.gpu_name || "CPU"],
-    ["Ollama Models", String((environment.ollama_models || []).length)],
+    ["Ollama Models", String((catalog.live_models || []).length)],
     ["OpenClaw Binary", environment.openclaw_binary ? "Detected" : "Missing"],
   ];
   els.metricGrid.innerHTML = metrics
@@ -72,7 +113,7 @@ function renderMetrics(snapshot) {
       ([label, value]) => `
         <div class="metric-card">
           <div class="metric-label">${label}</div>
-          <div class="metric-value">${value}</div>
+          <div class="metric-value">${escapeHtml(value)}</div>
         </div>
       `,
     )
@@ -88,10 +129,11 @@ function renderProfile(snapshot) {
   const fallbackText = (profile.fallbacks || []).join(", ") || "None";
   els.profileCard.innerHTML = `
     <div class="profile-lines">
-      <div class="pair"><span>Provider</span><strong>${profile.api || "ollama"}</strong></div>
-      <div class="pair"><span>Primary</span><strong class="mono">${profile.primary}</strong></div>
-      <div class="pair"><span>Fallbacks</span><strong class="mono">${fallbackText}</strong></div>
-      <div class="pair"><span>Endpoint</span><strong class="mono">${profile.base_url || "n/a"}</strong></div>
+      <div class="pair"><span>Provider</span><strong>${escapeHtml(profile.api || "ollama")}</strong></div>
+      <div class="pair"><span>Primary</span><strong class="mono">${escapeHtml(profile.primary)}</strong></div>
+      <div class="pair"><span>Fallbacks</span><strong class="mono">${escapeHtml(fallbackText)}</strong></div>
+      <div class="pair"><span>Endpoint</span><strong class="mono">${escapeHtml(profile.base_url || "n/a")}</strong></div>
+      <div class="pair"><span>Catalog</span><strong>${(profile.provider_models || []).length} models in active config</strong></div>
     </div>
   `;
 }
@@ -106,14 +148,14 @@ function renderJobs(snapshot) {
     .map(
       (job) => `
         <div class="job-card">
-          <div class="badge ${job.status}">${job.status}</div>
-          <p class="job-title">${job.workflow}</p>
+          <div class="badge ${job.status}">${escapeHtml(job.status)}</div>
+          <p class="job-title">${escapeHtml(job.workflow)}</p>
           <div class="job-meta">
-            <div class="pair"><span>Job ID</span><strong class="mono">${job.job_id}</strong></div>
+            <div class="pair"><span>Job ID</span><strong class="mono">${escapeHtml(job.job_id)}</strong></div>
             <div class="pair"><span>Created</span><strong>${new Date(job.created_at).toLocaleString()}</strong></div>
             ${
               job.error
-                ? `<div class="pair"><span>Error</span><strong class="mono">${job.error}</strong></div>`
+                ? `<div class="pair"><span>Error</span><strong class="mono">${escapeHtml(job.error)}</strong></div>`
                 : ""
             }
           </div>
@@ -134,16 +176,16 @@ function renderRuns(snapshot) {
       const outputs = (run.outputs || [])
         .map(
           (output) =>
-            `<a href="/repo/${output.path}" target="_blank" rel="noreferrer">${output.name}</a>`,
+            `<a href="/repo/${encodeURI(output.path)}" target="_blank" rel="noreferrer">${escapeHtml(output.name)}</a>`,
         )
         .join("");
       return `
         <div class="run-card">
-          <p class="run-title">${run.workflow || run.run_id}</p>
+          <p class="run-title">${escapeHtml(run.workflow || run.run_id)}</p>
           <div class="run-meta">
-            <div class="pair"><span>Run ID</span><strong class="mono">${run.run_id}</strong></div>
+            <div class="pair"><span>Run ID</span><strong class="mono">${escapeHtml(run.run_id)}</strong></div>
             <div class="pair"><span>Created</span><strong>${new Date(run.created_at).toLocaleString()}</strong></div>
-            <div class="pair"><span>Bundle</span><strong class="mono">${run.bundle_dir}</strong></div>
+            <div class="pair"><span>Bundle</span><strong class="mono">${escapeHtml(run.bundle_dir)}</strong></div>
           </div>
           <div class="run-outputs">${outputs || "<span class=\"panel-note\">No outputs yet.</span>"}</div>
         </div>
@@ -152,18 +194,159 @@ function renderRuns(snapshot) {
     .join("");
 }
 
+function renderCatalog(snapshot) {
+  const catalog = snapshot.model_catalog || {};
+  initRoleSelections(catalog);
+
+  const liveCount = (catalog.live_models || []).length;
+  const warnings = [];
+  if (catalog.live_error) {
+    warnings.push(`Catalog refresh degraded: ${catalog.live_error}`);
+  }
+  if (!liveCount) {
+    warnings.push("No live Ollama models reported.");
+  }
+
+  els.catalogStatus.innerHTML = `
+    <div class="catalog-banner">
+      <div>
+        <strong>${liveCount}</strong> live models on <span class="mono">${escapeHtml(catalog.base_url || "n/a")}</span>
+      </div>
+      <div class="catalog-banner-copy">${warnings.join(" ") || "Role chains are editable. Apply writes a fresh OpenClaw config."}</div>
+    </div>
+  `;
+
+  els.roleGrid.innerHTML = ROLE_ORDER.map((role) => renderRoleCard(role, catalog)).join("");
+  bindRoleControls(catalog);
+}
+
+function renderRoleCard(role, catalog) {
+  const specs = getRoleSpecs(catalog, role);
+  const selected = roleSelections[role] || [];
+  const currentValue = selected[0] || "";
+  const options = specs
+    .map((spec) => {
+      const availability = spec.available ? "live" : "manifest";
+      return `
+        <option value="${escapeHtml(spec.model)}" ${spec.model === currentValue ? "selected" : ""}>
+          ${escapeHtml(spec.model)} · ${availability}
+        </option>
+      `;
+    })
+    .join("");
+  const selectedChips = selected.length
+    ? selected
+        .map(
+          (model, index) => `
+            <div class="model-chip">
+              <button class="chip-move" data-role="${role}" data-direction="up" data-index="${index}" ${index === 0 ? "disabled" : ""}>↑</button>
+              <span class="mono">${escapeHtml(model)}</span>
+              <button class="chip-move" data-role="${role}" data-direction="down" data-index="${index}" ${index === selected.length - 1 ? "disabled" : ""}>↓</button>
+              <button class="chip-remove" data-role="${role}" data-index="${index}">Remove</button>
+            </div>
+          `,
+        )
+        .join("")
+    : `<p class="panel-note">No override selected. Manifest default will be used.</p>`;
+
+  const manifestList = specs
+    .map(
+      (spec) => `
+        <div class="catalog-row">
+          <div>
+            <strong class="mono">${escapeHtml(spec.model)}</strong>
+            <div class="catalog-meta">${escapeHtml((spec.capabilities || []).join(" · ") || "no capabilities")}</div>
+          </div>
+          <div class="catalog-flags">
+            <span class="mini-badge ${spec.available ? "live" : "ghost"}">${spec.available ? "live" : "manifest"}</span>
+            ${spec.active ? '<span class="mini-badge active">active</span>' : ""}
+          </div>
+        </div>
+      `,
+    )
+    .join("");
+
+  return `
+    <section class="role-card">
+      <div class="role-head">
+        <div>
+          <h4>${ROLE_LABELS[role]}</h4>
+          <p class="panel-note">Ordered failover chain for ${ROLE_LABELS[role].toLowerCase()} work.</p>
+        </div>
+      </div>
+      <div class="role-editor">
+        <label class="field-label" for="role-select-${role}">Add model</label>
+        <div class="role-picker">
+          <select id="role-select-${role}" data-role-select="${role}">
+            ${options}
+          </select>
+          <button class="ghost accent role-add" type="button" data-role="${role}">Add</button>
+        </div>
+        <div class="selected-stack">${selectedChips}</div>
+      </div>
+      <div class="catalog-list">${manifestList}</div>
+    </section>
+  `;
+}
+
+function bindRoleControls(catalog) {
+  document.querySelectorAll(".role-add").forEach((button) => {
+    button.addEventListener("click", () => {
+      const role = button.dataset.role;
+      const select = document.querySelector(`[data-role-select="${role}"]`);
+      const value = select?.value;
+      if (!role || !value) {
+        return;
+      }
+      const current = roleSelections[role] || [];
+      if (!current.includes(value)) {
+        roleSelections[role] = [...current, value];
+        renderCatalog(latestSnapshot);
+      }
+    });
+  });
+
+  document.querySelectorAll(".chip-remove").forEach((button) => {
+    button.addEventListener("click", () => {
+      const role = button.dataset.role;
+      const index = Number(button.dataset.index);
+      const current = [...(roleSelections[role] || [])];
+      current.splice(index, 1);
+      roleSelections[role] = current;
+      renderCatalog(latestSnapshot);
+    });
+  });
+
+  document.querySelectorAll(".chip-move").forEach((button) => {
+    button.addEventListener("click", () => {
+      const role = button.dataset.role;
+      const direction = button.dataset.direction;
+      const index = Number(button.dataset.index);
+      const current = [...(roleSelections[role] || [])];
+      const swapIndex = direction === "up" ? index - 1 : index + 1;
+      if (swapIndex < 0 || swapIndex >= current.length) {
+        return;
+      }
+      [current[index], current[swapIndex]] = [current[swapIndex], current[index]];
+      roleSelections[role] = current;
+      renderCatalog(latestSnapshot);
+    });
+  });
+}
+
 async function refreshDashboard() {
   try {
-    const snapshot = await fetchDashboard();
-    renderHero(snapshot);
-    renderMetrics(snapshot);
-    renderProfile(snapshot);
-    renderJobs(snapshot);
-    renderRuns(snapshot);
+    latestSnapshot = await fetchDashboard();
+    renderHero(latestSnapshot);
+    renderMetrics(latestSnapshot);
+    renderProfile(latestSnapshot);
+    renderCatalog(latestSnapshot);
+    renderJobs(latestSnapshot);
+    renderRuns(latestSnapshot);
   } catch (error) {
     els.heroStatus.innerHTML = `
       <div class="status-pill">Error</div>
-      <p class="mono">${error.message}</p>
+      <p class="mono">${escapeHtml(error.message)}</p>
     `;
   }
 }
@@ -172,7 +355,8 @@ async function onActionClick(event) {
   const workflow = event.currentTarget.dataset.workflow;
   event.currentTarget.disabled = true;
   try {
-    await submitWorkflow(workflow);
+    const payload = workflow === "install-openclaw-cloud" ? buildInstallPayload() : {};
+    await submitWorkflow(workflow, payload);
     await refreshDashboard();
   } catch (error) {
     window.alert(error.message);
@@ -181,8 +365,31 @@ async function onActionClick(event) {
   }
 }
 
+async function applyModelSelections() {
+  els.applyModels.disabled = true;
+  try {
+    await submitWorkflow("install-openclaw-cloud", buildInstallPayload());
+    await refreshDashboard();
+  } catch (error) {
+    window.alert(error.message);
+  } finally {
+    els.applyModels.disabled = false;
+  }
+}
+
+function resetModelSelections() {
+  if (!latestSnapshot?.model_catalog) {
+    return;
+  }
+  roleSelections = {};
+  initRoleSelections(latestSnapshot.model_catalog);
+  renderCatalog(latestSnapshot);
+}
+
 els.refresh.addEventListener("click", refreshDashboard);
 els.buttons.forEach((button) => button.addEventListener("click", onActionClick));
+els.applyModels.addEventListener("click", applyModelSelections);
+els.resetModels.addEventListener("click", resetModelSelections);
 
 refreshDashboard();
 pollHandle = window.setInterval(refreshDashboard, 8000);

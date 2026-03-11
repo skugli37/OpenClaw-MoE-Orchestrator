@@ -12,8 +12,10 @@ if str(SRC_DIR) not in sys.path:
 from openclaw_moe_orchestrator.gui import (  # noqa: E402
     _role_model_overrides_from_payload,
     active_openclaw_profile,
+    build_model_catalog,
     build_recent_runs,
 )
+from openclaw_moe_orchestrator.exceptions import ConfigurationError  # noqa: E402
 from openclaw_moe_orchestrator.llm import ModelRole  # noqa: E402
 from openclaw_moe_orchestrator.paths import RepoPaths  # noqa: E402
 
@@ -30,6 +32,17 @@ def test_role_model_overrides_from_payload() -> None:
         ModelRole.REASONING: ("qwen3-next:80b-cloud", "gpt-oss:120b-cloud"),
         ModelRole.CODING: ("qwen3-coder-next:cloud",),
     }
+
+
+def test_role_model_overrides_from_payload_rejects_duplicates() -> None:
+    payload = {"reasoning_models": ["qwen3-next:80b-cloud", "qwen3-next:80b-cloud"]}
+
+    try:
+        _role_model_overrides_from_payload(payload)
+    except ConfigurationError as error:
+        assert "contains duplicates" in str(error)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("Expected ConfigurationError")
 
 
 def test_build_recent_runs_reads_bundle_metadata(tmp_path: Path) -> None:
@@ -62,3 +75,25 @@ def test_active_openclaw_profile_absent(tmp_path: Path, monkeypatch) -> None:
     profile = active_openclaw_profile()
 
     assert profile == {"exists": False}
+
+
+def test_build_model_catalog_marks_live_and_active_models(monkeypatch) -> None:
+    paths = RepoPaths.discover(REPO_ROOT)
+    monkeypatch.setattr(
+        "openclaw_moe_orchestrator.gui.active_openclaw_profile",
+        lambda: {
+            "exists": True,
+            "primary": "ollama/qwen3-next:80b-cloud",
+            "fallbacks": ["ollama/gpt-oss:120b-cloud"],
+        },
+    )
+    monkeypatch.setattr(
+        "openclaw_moe_orchestrator.gui.OllamaClient.list_models",
+        lambda self: ["qwen3-next:80b-cloud", "gpt-oss:120b-cloud"],
+    )
+
+    catalog = build_model_catalog(paths)
+
+    assert catalog["defaults"]["reasoning"][0] == "gpt-oss:120b-cloud"
+    assert catalog["roles"]["reasoning"][0]["available"] is True
+    assert any(item["active"] for item in catalog["roles"]["reasoning"])

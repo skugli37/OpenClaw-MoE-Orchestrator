@@ -15,7 +15,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .environment import collect_environment_report
 from .exceptions import ConfigurationError
-from .llm import ModelRole
+from .llm import ModelRole, OllamaClient, load_manifest
 from .openclaw_local import collect_openclaw_local_status, install_openclaw_local_bundle
 from .paths import RepoPaths
 from .pipelines import run_integrated_orchestrator, run_multi_asset_report, run_single_asset_mission
@@ -119,6 +119,58 @@ def active_openclaw_profile() -> dict[str, Any]:
         "fallbacks": model.get("fallbacks", []),
         "base_url": provider.get("baseUrl"),
         "api": provider.get("api"),
+        "provider_models": [
+            spec.get("id")
+            for spec in provider.get("models", [])
+            if isinstance(spec, dict) and spec.get("id")
+        ],
+    }
+
+
+def build_model_catalog(paths: RepoPaths) -> dict[str, Any]:
+    manifest = load_manifest(paths.config_dir / "ollama_model_manifest.json")
+    try:
+        live_models = set(OllamaClient(base_url=manifest.base_url).list_models())
+        live_error = None
+    except Exception as error:  # pragma: no cover - depends on local Ollama daemon
+        live_models = set()
+        live_error = str(error)
+
+    active_profile = active_openclaw_profile()
+    active_models = {
+        str(active_profile.get("primary") or "").removeprefix("ollama/"),
+        *[
+            str(item).removeprefix("ollama/")
+            for item in active_profile.get("fallbacks", [])
+            if str(item).strip()
+        ],
+    }
+    roles: dict[str, list[dict[str, Any]]] = {}
+    defaults: dict[str, list[str]] = {}
+    for role in ModelRole:
+        ordered_models = sorted(manifest.models_for_role(role), key=lambda item: item.priority, reverse=True)
+        defaults[role.value] = [item.model for item in ordered_models]
+        roles[role.value] = [
+            {
+                "model": item.model,
+                "priority": item.priority,
+                "warm": item.warm,
+                "max_concurrency": item.max_concurrency,
+                "min_context_window": item.min_context_window,
+                "capabilities": list(item.capabilities),
+                "available": item.model in live_models,
+                "active": item.model in active_models,
+            }
+            for item in ordered_models
+        ]
+    return {
+        "base_url": manifest.base_url,
+        "timeout_seconds": manifest.timeout_seconds,
+        "cooldown_seconds": manifest.cooldown_seconds,
+        "live_models": sorted(live_models),
+        "live_error": live_error,
+        "defaults": defaults,
+        "roles": roles,
     }
 
 
@@ -127,6 +179,7 @@ def gui_snapshot(paths: RepoPaths, jobs: GuiJobStore) -> dict[str, Any]:
         "environment": collect_environment_report(paths),
         "openclaw": collect_openclaw_local_status(paths),
         "active_profile": active_openclaw_profile(),
+        "model_catalog": build_model_catalog(paths),
         "jobs": [asdict(job) for job in jobs.list()[:10]],
         "recent_runs": build_recent_runs(paths),
     }
@@ -141,6 +194,8 @@ def _role_model_overrides_from_payload(payload: dict[str, Any]) -> dict[ModelRol
         if not isinstance(raw_models, list):
             raise ConfigurationError(f"{role.value}_models must be a list")
         cleaned_models = tuple(str(item).strip() for item in raw_models if str(item).strip())
+        if len(cleaned_models) != len(set(cleaned_models)):
+            raise ConfigurationError(f"{role.value}_models contains duplicates")
         if cleaned_models:
             role_model_overrides[role] = cleaned_models
     return role_model_overrides or None
@@ -219,6 +274,8 @@ class GuiRequestHandler(SimpleHTTPRequestHandler):
             return self._write_json(asdict(job))
         if parsed.path == "/api/openclaw/config":
             return self._write_json(active_openclaw_profile())
+        if parsed.path == "/api/models/catalog":
+            return self._write_json(build_model_catalog(self.paths))
         if parsed.path == "/api/runs":
             query = parse_qs(parsed.query)
             limit = int(query.get("limit", ["12"])[0])

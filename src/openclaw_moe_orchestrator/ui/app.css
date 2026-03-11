@@ -158,6 +158,14 @@ h1 {
   text-transform: uppercase;
 }
 
+.panel-subhead h3,
+.role-head h4 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .panel-note {
   color: var(--muted);
   font-size: 0.86rem;
@@ -198,36 +206,186 @@ h1 {
 .action-stack {
   display: grid;
   gap: 12px;
-  margin-bottom: 18px;
 }
 
-.override-form {
+.operator-layout {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.8fr);
+  gap: 18px;
 }
 
-.override-form label {
+.config-well,
+.execution-well,
+.role-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background: rgba(6, 16, 24, 0.72);
+}
+
+.config-well,
+.execution-well {
+  padding: 18px;
+}
+
+.model-toolbar,
+.panel-subhead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.panel-subhead {
+  margin-bottom: 14px;
+}
+
+.catalog-status {
+  margin-bottom: 14px;
+}
+
+.catalog-banner {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(110, 231, 255, 0.11), rgba(255, 133, 95, 0.08));
+  border: 1px solid rgba(110, 231, 255, 0.16);
+}
+
+.catalog-banner-copy {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.role-card {
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.role-editor,
+.selected-stack,
+.catalog-list {
   display: grid;
   gap: 8px;
 }
 
-.override-form span {
+.field-label {
   color: var(--muted);
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
 
+.role-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+select,
 textarea {
-  min-height: 84px;
+  min-height: 50px;
   width: 100%;
-  resize: vertical;
   padding: 14px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(3, 9, 14, 0.56);
   color: var(--text);
   font: inherit;
+}
+
+textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.model-chip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chip-move,
+.chip-remove {
+  border: 0;
+  border-radius: 10px;
+  padding: 7px 9px;
+  cursor: pointer;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chip-remove {
+  background: rgba(255, 107, 107, 0.14);
+}
+
+.chip-move:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.catalog-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.catalog-row:first-child {
+  border-top: 0;
+}
+
+.catalog-meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.catalog-flags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.mini-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  background: rgba(99, 230, 190, 0.12);
+  color: var(--success);
+}
+
+.mini-badge.ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+}
+
+.mini-badge.active {
+  background: rgba(255, 209, 102, 0.14);
+  color: var(--warn);
+}
+
+.ghost.accent {
+  border-color: rgba(110, 231, 255, 0.26);
+  background: rgba(110, 231, 255, 0.1);
 }
 
 .metric-grid {
@@ -336,6 +494,47 @@ textarea {
   padding: 7px 10px;
   border-radius: 999px;
   background: rgba(110, 231, 255, 0.08);
+}
+
+@media (max-width: 1180px) {
+  .metrics-panel,
+  .action-panel,
+  .profile-panel,
+  .jobs-panel,
+  .runs-panel {
+    grid-column: span 12;
+  }
+
+  .operator-layout,
+  .hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .shell {
+    width: min(100vw - 20px, 1440px);
+    padding-top: 16px;
+  }
+
+  .role-grid,
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-picker,
+  .model-toolbar,
+  .panel-subhead,
+  .pair,
+  .catalog-row,
+  .model-chip {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .catalog-flags {
+    justify-content: flex-start;
+  }
 }
 
 @media (max-width: 1120px) {
