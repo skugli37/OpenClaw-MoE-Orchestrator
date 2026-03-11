@@ -1,20 +1,19 @@
-# 🦞 OpenClaw Intelligence Report: BTC Anomaly Analysis
+# OpenClaw Intelligence Report: BTC Anomaly Analysis
 
 ## Executive Summary
-Autonomna misija je uspešno izvršena koristeći DeepSpeed MoE stack. 
-Model je identifikovao ključne tačke atipičnog tržišnog ponašanja u periodu 2025-2026.
+Analyzed 400 BTC market observations from 2025-01-11 to 2026-02-14.
+The MoE model marked 20 observations as anomalous at the 95th percentile of reconstruction error.
 
 ## Technical Specs
-- **Framework**: OpenClaw Orchestration
-- **Engine**: DeepSpeed ZeRO-2
-- **Model**: Mixture of Experts (4 Experts, Top-1 Gating)
-- **Precision**: FP16 (Half-precision)
-- **Hardware**: Unrestricted Compute (CPU-Parallelism via DeepSpeed)
+- Framework: OpenClaw Orchestration
+- Engine: DeepSpeed ZeRO-2
+- Model: Mixture of Experts (4 Experts)
+- Input features: normalized close, volume, returns, rolling volatility
 
 ## Findings
-Detektovane su značajne anomalije početkom februara 2026, što ukazuje na promenu tržišne strukture ili akumulaciju velikih igrača. 
-Model je uspešno markirao tačke ekstremne volatilnosti koje odstupaju od standardnih obrazaca kretanja cene i volumena.
+- Highest anomaly date: 2026-02-06
+- BTC close at that point: $70,555.39
+- Maximum reconstruction error: 11.611484
 
 ## Visual Evidence
-Vizuelni dokazi su sačuvani u prilogu `anomaly_chart.png`.
-Tačke označene crvenom bojom predstavljaju detektovane anomalije (Top 5% rekonstrukcijske greške).
+The anomaly chart is saved under `artifacts/anomaly_chart.png`.

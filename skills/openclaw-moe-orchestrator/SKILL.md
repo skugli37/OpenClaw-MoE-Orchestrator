@@ -5,15 +5,14 @@ description: Orchestrate OpenClaw agents with DeepSpeed MoE (Mixture of Experts)
 
 # OpenClaw MoE Orchestrator
 
-This skill enables the orchestration of autonomous agents using the **OpenClaw** framework, optimized with **DeepSpeed Mixture of Experts (MoE)**. It is designed for high-performance computing tasks in sandboxed environments, specifically for data analysis, anomaly detection, and autonomous decision-making.
+This skill enables the orchestration of autonomous agents using the **OpenClaw** framework, optimized with **DeepSpeed Mixture of Experts (MoE)**. It is designed for high-performance computing tasks focused on real market-data analysis, anomaly detection, and autonomous decision-making.
 
 ## Core Workflow
 
 ### 1. Environment Setup
-To use this skill, the environment must have high-performance AI dependencies. Use `uv` for fast installation:
+Use the repository's packaged runtime instead of ad hoc global installs:
 ```bash
-sudo pip3 install uv && sudo uv pip install --system torch deepspeed transformers accelerate yfinance pandas numpy matplotlib mpi4py
-sudo apt-get update && sudo apt-get install -y build-essential g++ python3.11-dev libopenmpi-dev ninja-build
+python -m pip install -e .
 ```
 
 ### 2. OpenClaw Initialization
@@ -28,17 +27,18 @@ Use the provided templates to configure DeepSpeed ZeRO-2/3. For CPU-based enviro
 - Template: `templates/ds_config_zero2.json`
 
 ### 4. Running Autonomous Missions
-Orchestrate the agent to perform specific tasks using the `scripts/` provided:
-- `prepare_market_data.py`: Fetches and normalizes market data.
-- `moe_anomaly_detector.py`: Trains an MoE model for anomaly detection.
-- `visualize_anomalies.py`: Generates visual reports.
+Use the packaged CLI or the thin compatibility wrappers in `scripts/`:
+- `python -m openclaw_moe_orchestrator run-mission`
+- `python -m openclaw_moe_orchestrator run-integrated`
+- `python -m openclaw_moe_orchestrator detect-single`
+- `python -m openclaw_moe_orchestrator detect-multi`
 
 ## Best Practices
-- **Always use `uv`**: Standard `pip` is too slow for massive AI libraries.
-- **CPU Offloading**: In sandboxed environments without dedicated GPUs, ensure `cpu_offload: true` is set in DeepSpeed config.
-- **JIT Compilation**: Ensure `build-essential` and `python-dev` are installed to allow DeepSpeed to compile its C++ extensions.
+- **Use the packaged entry points**: Production runs should use the Python package, not hardcoded home-directory paths.
+- **Prefer GPU execution when available**: Runtime adapts DeepSpeed config to the local machine and avoids CPU-offload settings that require fragile JIT builds.
+- **Keep templates only as templates**: Production code should consume checked-in configs under `configs/`, while `templates/` remain starting points for variants.
 
 ## Bundled Resources
-- `scripts/`: Implementation of market data gathering and MoE anomaly detection.
+- `scripts/`: Thin compatibility wrappers around the packaged production runtime.
 - `templates/`: DeepSpeed and OpenClaw configuration boilerplates.
 - `references/`: Documentation for advanced MoE tuning.

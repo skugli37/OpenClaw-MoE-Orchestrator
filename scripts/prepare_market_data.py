@@ -1,17 +1,13 @@
-import yfinance as yf
-import pandas as pd
-import numpy as np
+import sys
+from pathlib import Path
 
-def prepare_data():
-    print("Fetching BTC-USD data...")
-    df = yf.download("BTC-USD", start="2025-01-01", end="2026-02-15")
-    df = df[['Close', 'Volume']]
-    df['Returns'] = df['Close'].pct_change()
-    df['Vol'] = df['Returns'].rolling(window=10).std()
-    df = df.dropna()
-    df_norm = (df - df.mean()) / df.std()
-    df_norm.to_csv("market_data_norm.csv", index=False)
-    print(f"Prepared {len(df_norm)} data points. Saved to market_data_norm.csv")
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from openclaw_moe_orchestrator.data_pipeline import prepare_market_data
+from openclaw_moe_orchestrator.logging_utils import configure_logging
+from openclaw_moe_orchestrator.paths import RepoPaths
+
 
 if __name__ == "__main__":
-    prepare_data()
+    configure_logging()
+    prepare_market_data(RepoPaths.discover())

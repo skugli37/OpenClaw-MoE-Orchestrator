@@ -1,27 +1,17 @@
-import pandas as pd
-import matplotlib.pyplot as plt
+import sys
+from pathlib import Path
 
-def visualize():
-    df = pd.read_csv("anomaly_results.csv", index_col=0)
-    df.index = pd.to_datetime(df.index)
-    
-    plt.figure(figsize=(15, 8))
-    
-    # Glavni grafikon cene
-    plt.plot(df.index, df['Close'], label='BTC Price (USD)', color='blue', alpha=0.6)
-    
-    # Markiranje anomalija
-    anomalies = df[df['Is_Anomaly'] == True]
-    plt.scatter(anomalies.index, anomalies['Close'], color='red', label='Detected Anomalies', s=50, edgecolors='black')
-    
-    plt.title('Bitcoin Price & Detected Anomalies (MoE + DeepSpeed Analysis)', fontsize=16)
-    plt.xlabel('Date', fontsize=12)
-    plt.ylabel('Price (USD)', fontsize=12)
-    plt.legend()
-    plt.grid(True, linestyle='--', alpha=0.7)
-    
-    plt.savefig("anomaly_chart.png")
-    print("Visualization saved as anomaly_chart.png")
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+
+from openclaw_moe_orchestrator.logging_utils import configure_logging
+from openclaw_moe_orchestrator.paths import RepoPaths
+from openclaw_moe_orchestrator.visualization import visualize_single_asset
+
 
 if __name__ == "__main__":
-    visualize()
+    configure_logging()
+    paths = RepoPaths.discover()
+    visualize_single_asset(
+        paths.artifacts_dir / "anomaly_results.csv",
+        paths.artifacts_dir / "anomaly_chart.png",
+    )
