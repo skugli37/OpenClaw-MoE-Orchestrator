@@ -128,3 +128,28 @@ def test_install_openclaw_local_bundle_accepts_live_only_override(tmp_path: Path
     provider_models = overlay["models"]["providers"]["ollama"]["models"]
     assert any(item["id"] == "kimi-k2.5:cloud" for item in provider_models)
     assert result["role_model_overrides"]["reasoning"][0] == "kimi-k2.5:cloud"
+
+
+def test_install_openclaw_local_bundle_appends_live_provider_models(tmp_path: Path, monkeypatch) -> None:
+    paths = RepoPaths.discover(REPO_ROOT)
+    state_dir = tmp_path / ".openclaw"
+
+    monkeypatch.setattr(
+        "openclaw_moe_orchestrator.openclaw_local.OllamaClient.list_model_entries",
+        lambda self: [
+            OllamaModelEntry(
+                name="kimi-k2.5:cloud",
+                family="kimi",
+                remote_model="kimi-k2.5",
+                remote_host="https://ollama.com",
+                size=340,
+            )
+        ],
+    )
+
+    install_openclaw_local_bundle(paths, state_dir=state_dir)
+
+    layout = OpenClawLocalLayout.discover(state_dir)
+    overlay = json.loads(layout.overlay_config_path.read_text())
+    provider_models = overlay["models"]["providers"]["ollama"]["models"]
+    assert any(item["id"] == "kimi-k2.5:cloud" for item in provider_models)

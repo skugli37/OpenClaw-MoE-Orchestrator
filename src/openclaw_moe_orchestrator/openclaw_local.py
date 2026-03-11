@@ -78,6 +78,7 @@ def build_openclaw_local_overlay(
 ) -> dict:
     manifest = load_manifest(manifest_path)
     ordered_manifest = reorder_manifest(manifest, role_model_overrides=role_model_overrides)
+    live_entries = _live_model_entries_by_name(ordered_manifest.base_url)
     reasoning_models = _ordered_models_for_role(ordered_manifest, ModelRole.REASONING)
     coding_models = _ordered_models_for_role(ordered_manifest, ModelRole.CODING)
     general_models = _ordered_models_for_role(ordered_manifest, ModelRole.GENERAL)
@@ -115,7 +116,7 @@ def build_openclaw_local_overlay(
                     "baseUrl": ordered_manifest.base_url,
                     "apiKey": DEFAULT_OLLAMA_AUTH_MARKER,
                     "api": "ollama",
-                    "models": [_render_provider_model(spec) for spec in ordered_manifest.models],
+                    "models": _merge_provider_models(ordered_manifest, live_entries),
                 }
             }
         },
@@ -230,6 +231,42 @@ def _build_live_override_spec(
         min_context_window=_default_context_window_for_role(role),
         capabilities=_capabilities_for_live_entry(role, live_entry),
     )
+
+
+def _merge_provider_models(
+    manifest: OllamaManifest,
+    live_entries: dict[str, OllamaModelEntry],
+) -> list[dict]:
+    rendered: list[dict] = []
+    seen: set[str] = set()
+    for spec in manifest.models:
+        rendered_model = _render_provider_model(spec)
+        rendered.append(rendered_model)
+        seen.add(spec.model)
+    for model_name in sorted(live_entries):
+        if model_name in seen:
+            continue
+        rendered.append(_render_live_provider_model(live_entries[model_name]))
+        seen.add(model_name)
+    return rendered
+
+
+def _render_live_provider_model(entry: OllamaModelEntry) -> dict:
+    context_window = 131072
+    return {
+        "id": entry.name,
+        "name": entry.name,
+        "reasoning": False,
+        "input": ["text"],
+        "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+        },
+        "contextWindow": context_window,
+        "maxTokens": context_window * 10,
+    }
 
 
 def _default_context_window_for_role(role: ModelRole) -> int:
