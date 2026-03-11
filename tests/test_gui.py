@@ -88,8 +88,11 @@ def test_build_model_catalog_marks_live_and_active_models(monkeypatch) -> None:
         },
     )
     monkeypatch.setattr(
-        "openclaw_moe_orchestrator.gui.OllamaClient.list_models",
-        lambda self: ["qwen3-next:80b-cloud", "gpt-oss:120b-cloud"],
+        "openclaw_moe_orchestrator.gui.OllamaClient.list_model_entries",
+        lambda self: [
+            OllamaModelEntry(name="qwen3-next:80b-cloud"),
+            OllamaModelEntry(name="gpt-oss:120b-cloud"),
+        ],
     )
 
     catalog = build_model_catalog(paths)
