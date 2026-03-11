@@ -20,3 +20,13 @@ Ovaj repozitorijum sadrži kompletan sistem za autonomnu analizu tržišta i det
 
 ---
 *Developed in UNRESTRICTED Research Mode.*
+
+## 🚀 Novo: Integrisani Orkestrator (MoE + Browser)
+Sada projekat uključuje i **`integrated_orchestrator.py`** koji spaja:
+1. **MoE Detekciju**: DeepSpeed MoE model skenira live tržište.
+2. **Browser News Oracle**: Automatski skener vesti bez API troškova (`browser_news_oracle.py`).
+
+Pokrenite ga sa:
+```bash
+python3 scripts/integrated_orchestrator.py
+```
