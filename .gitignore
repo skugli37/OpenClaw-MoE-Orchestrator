@@ -1,0 +1,64 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*.pyc.*
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+.python-version
+
+# Build and packaging
+build/
+dist/
+site/
+.eggs/
+*.egg
+*.egg-info/
+pip-wheel-metadata/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Logs and local env files
+*.log
+.env
+.env.*
+*.local
+
+# Editors and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Runtime outputs
+artifacts/
+data/raw/
+data/processed/
+results/
+checkpoints/
+outputs/
+
+# Generated reports and datasets from local runs
+*_history.csv
+market_data_norm.csv
+multi_asset_returns.csv
+multi_asset_anomalies.csv
+anomaly_results.csv
+stress_test_data.csv
+anomaly_chart.png
+multi_asset_anomaly_chart.png
+prepare_data.py
+ds_config_zero2.json
+
+# Hardware and installer artifacts
+cuda-keyring_*.deb

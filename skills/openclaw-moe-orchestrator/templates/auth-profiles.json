@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ollama:default": {
+      "provider": "ollama",
+      "type": "api_key",
+      "key": "ollama-cloud"
+    }
+  },
+  "usageStats": {}
+}

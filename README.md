@@ -1,398 +1,206 @@
-# OpenClaw-MoE-Orchestrator: Beyond-SOTA Modernization
+# OpenClaw MoE Orchestrator
 
-**Status**: Production-Ready Beyond-SOTA Time Series Anomaly Detection
+Production-oriented market analysis and anomaly detection workflows built around DeepSpeed Mixture-of-Experts models and zero-cost external news validation.
 
-## Overview
+The repository now also includes a production OpenClaw integration path backed by Ollama Cloud model rotation, with OpenAI and Anthropic kept out of the active provider path.
 
-This project represents a **complete modernization** of the original MoE-Autoencoder implementation, replacing it with state-of-the-art architectures and production-grade infrastructure.
+## What It Does
 
-### Key Improvements
+- Downloads real crypto market data from Yahoo Finance.
+- Builds normalized single-asset and multi-asset feature sets.
+- Trains DeepSpeed MoE autoencoders for anomaly detection.
+- Produces charts, reports, and run metadata for traceability.
+- Runs an integrated orchestrator that combines anomaly scoring with live Google News RSS context.
 
-| Metric | Original MoE | Beyond-SOTA | Improvement |
-|--------|-------------|-------------|-------------|
-| **F1-Score** | 0.68 | 0.92 | +35% |
-| **Inference Latency** | 250ms | 15ms | **16x faster** |
-| **Scalability** | 500 points | 10,000+ points | **20x** |
-| **Zero-Shot** | ❌ No | ✅ Yes | ∞ |
-| **Interpretability** | Low | High | 10x better |
-| **Production-Ready** | 40% | 95% | +55% |
+This repository now separates the production runtime from playground code:
 
----
+- `src/openclaw_moe_orchestrator/`: packaged production code
+- `scripts/`: thin compatibility launchers
+- `experiments/`: non-production demos, stress tests, and simulations
+- `configs/`: checked-in DeepSpeed configuration
+- `data/processed/`: generated processed datasets
+- `artifacts/`: generated anomaly results, charts, and metadata
+- `docs/`: operator-facing reports and architecture notes
 
-## Architecture
+## Production Requirements
 
-### 1. **Temporal Fusion Transformer (TFT)**
-- Multi-head attention with sliding window optimization
-- O(n*w) complexity instead of O(n²)
-- Interpretable attention weights for explainability
-- Reference: Lim et al., ICLR 2021
+- Python `3.12+`
+- A working local virtual environment
+- `torch` and `deepspeed` installed in that environment
+- GPU is preferred; CPU execution is supported but slower
 
-### 2. **Extreme Value Theory (EVT) + Peak-Over-Threshold (POT)**
-- Adaptive threshold determination based on tail distribution
-- Mathematically founded (Pickands-Balkema-de Haan Theorem)
-- Robust against distribution shifts
-- Replaces hardcoded 99th percentile
+The runtime is fail-fast about malformed datasets and missing configs. It does not use synthetic market data in the production path.
 
-### 3. **Multi-Source Feature Fusion**
-- **On-Chain Metrics**: Active addresses, transaction volume, exchange flows
-- **Order-Book Imbalance**: Bid/ask ratio, liquidity depth
-- **Social Sentiment**: Twitter, Reddit, Telegram sentiment scores
-- **Price & Volume**: Standard OHLCV data
+## Install
 
-### 4. **Production-Grade Orchestration**
-- **Asynchronous Execution**: asyncio + ThreadPoolExecutor
-- **Parallel Agents**: Market Expert, News Oracle, Risk Manager
-- **Retry Logic**: Exponential backoff for resilience
-- **Error Handling**: Graceful degradation
-
----
-
-## Project Structure
-
-```
-OPENCLAW_MOE_PROJECT/
-├── scripts/
-│   ├── beyond_sota_architecture.py       # TFT + EVT-POT core
-│   ├── production_agent_orchestrator.py   # Async agent orchestration
-│   ├── production_orchestrator.py         # Legacy orchestrator
-│   ├── browser_news_oracle.py             # News scraping (Playwright-ready)
-│   ├── self_audit_production.py           # Automated audit system
-│   ├── prepare_market_data.py             # Data preparation
-│   ├── moe_anomaly_detector.py            # Original MoE (deprecated)
-│   └── [other legacy scripts]
-│
-├── configs/
-│   ├── ds_config_zero2.json               # DeepSpeed config
-│   └── [other configs]
-│
-├── docs/
-│   ├── SOTA_RESEARCH_FINDINGS.md          # Comprehensive literature review
-│   ├── IMPLEMENTATION_GUIDE.md            # Step-by-step implementation
-│   ├── PRODUCTION_AUDIT_REPORT.md         # Automated audit results
-│   └── production_report.md               # Legacy report
-│
-└── skills/
-    └── openclaw-moe-orchestrator/         # Reusable Manus skill
-```
-
----
-
-## Installation
-
-### Prerequisites
-- Python 3.11+
-- CUDA 12.0+ (optional, for GPU acceleration)
-- 8GB RAM minimum (16GB recommended)
-
-### Setup
+Use the local virtual environment and install through the committed lock file:
 
 ```bash
-# Clone repository
-git clone https://github.com/skugli37/OpenClaw-MoE-Orchestrator.git
-cd OpenClaw-MoE-Orchestrator
-
-# Install dependencies
-pip install torch numpy scipy scikit-learn transformers pandas requests
-
-# Optional: Install Playwright for advanced news scraping
-pip install playwright
-playwright install chromium
+make install
 ```
 
----
-
-## Quick Start
-
-### 1. Basic Anomaly Detection
-
-```python
-import torch
-from scripts.beyond_sota_architecture import BeyondSOTAAnomalyDetector
-
-# Initialize detector
-detector = BeyondSOTAAnomalyDetector(
-    input_dim=7,  # BTC price, volume, on-chain, orderbook, sentiment, etc.
-    hidden_dim=256,
-    num_heads=8,
-    device='cpu'  # Use 'cuda' if available
-)
-
-# Prepare data (batch_size=1, seq_len=64, features=7)
-market_data = torch.randn(1, 64, 7)
-
-# Detect anomalies
-result = detector.detect(market_data, confidence=0.99)
-
-print(f"Anomaly Score: {result.anomaly_score:.4f}")
-print(f"Is Anomaly: {result.is_anomaly}")
-print(f"Threshold: {result.threshold:.4f}")
-```
-
-### 2. Production Orchestration (Async)
-
-```python
-import asyncio
-from scripts.production_agent_orchestrator import ProductionOrchestrator
-
-async def main():
-    orchestrator = ProductionOrchestrator(detector)
-    
-    result = await orchestrator.orchestrate(
-        market_data=market_data,
-        assets=['BTC', 'ETH', 'SOL']
-    )
-    
-    print(f"Risk Score: {result.final_risk_score:.2f}/10")
-    print(f"Market Expert Status: {result.market_expert.status}")
-    print(f"News Oracle Status: {result.news_oracle.status}")
-    print(f"Risk Manager Status: {result.risk_manager.status}")
-
-asyncio.run(main())
-```
-
-### 3. Run Production Audit
+If you are already working inside the repository `.venv`, install only the missing tooling:
 
 ```bash
-python scripts/self_audit_production.py
+source .venv/bin/activate
+make install
 ```
 
-Output: Comprehensive audit report in `docs/PRODUCTION_AUDIT_REPORT.md`
+## Commands
 
----
+Primary packaged CLI:
 
-## Key Features
-
-### ✅ Production-Ready
-
-- **Strict Error Handling**: Fail-fast design, no silent failures
-- **Comprehensive Logging**: Structured logging for debugging
-- **Type Hints**: Full type annotations for IDE support
-- **Docstrings**: Complete documentation for all classes/methods
-
-### ✅ Scalable
-
-- **Async/Await**: Non-blocking I/O for concurrent operations
-- **Thread Pooling**: CPU-intensive tasks offloaded to thread pool
-- **Memory Efficient**: Sliding window attention reduces memory from O(n²) to O(n*w)
-
-### ✅ Interpretable
-
-- **Attention Weights**: Visualize which time steps are important
-- **EVT-POT Threshold**: Mathematically justified anomaly boundaries
-- **Multi-Source Fusion**: Understand which data sources drive decisions
-
-### ✅ Robust
-
-- **Retry Logic**: Exponential backoff for transient failures
-- **Graceful Degradation**: System continues if one agent fails
-- **Distribution Shift Handling**: EVT adapts to changing market conditions
-
----
-
-## Documentation
-
-### 1. **SOTA_RESEARCH_FINDINGS.md**
-Comprehensive literature review of state-of-the-art methods:
-- PatchTST (ICLR 2023)
-- Mamba SSM (2023-2025)
-- Chronos Foundation Model (Amazon Science 2024)
-- Temporal Fusion Transformer (ICLR 2021)
-- Extreme Value Theory + POT
-
-### 2. **IMPLEMENTATION_GUIDE.md**
-Step-by-step implementation guide with:
-- Concrete code examples
-- Performance benchmarks
-- Integration strategy
-- Comparison tables
-
-### 3. **PRODUCTION_AUDIT_REPORT.md**
-Automated audit results:
-- Code quality assessment
-- Dependency verification
-- Data source validation
-- Security scanning
-- Performance benchmarking
-
----
-
-## Performance Benchmarks
-
-### Inference Speed
-```
-TFT Model (CPU):     15ms per sequence
-Original MoE (CPU): 250ms per sequence
-Speedup:             16x faster
-```
-
-### Anomaly Detection Accuracy
-```
-Dataset: BTC/ETH/SOL historical data (2025-2026)
-
-Original MoE:
-  - Precision: 0.72
-  - Recall: 0.65
-  - F1-Score: 0.68
-
-Beyond-SOTA (TFT + EVT-POT):
-  - Precision: 0.95
-  - Recall: 0.89
-  - F1-Score: 0.92
-
-Improvement: +35% F1-Score
-```
-
-### Scalability
-```
-Max Sequence Length:
-  - Original MoE: 500 points
-  - Beyond-SOTA: 10,000+ points
-  - Improvement: 20x
-
-Memory Usage (1000-point sequence):
-  - Original MoE: 2.1 GB
-  - Beyond-SOTA: 1.8 GB
-  - Improvement: 14% reduction
-```
-
----
-
-## API Reference
-
-### BeyondSOTAAnomalyDetector
-
-```python
-class BeyondSOTAAnomalyDetector:
-    def __init__(
-        self,
-        input_dim: int,
-        hidden_dim: int = 256,
-        num_heads: int = 8,
-        device: str = 'cpu'
-    )
-    
-    def train(
-        self,
-        train_data: torch.Tensor,
-        train_labels: torch.Tensor,
-        epochs: int = 100,
-        batch_size: int = 32,
-        learning_rate: float = 1e-3
-    )
-    
-    def fit_threshold(self, calibration_data: torch.Tensor)
-    
-    def detect(
-        self,
-        data: torch.Tensor,
-        confidence: float = 0.99
-    ) -> AnomalyDetectionResult
-```
-
-### ProductionOrchestrator
-
-```python
-class ProductionOrchestrator:
-    async def orchestrate(
-        self,
-        market_data: torch.Tensor,
-        assets: List[str] = None
-    ) -> OrchestratedResult
-```
-
----
-
-## Deployment
-
-### Local Development
 ```bash
-python scripts/production_agent_orchestrator.py
+openclaw-moe doctor
+openclaw-moe run-mission
+openclaw-moe run-multi-report
+openclaw-moe run-integrated
+openclaw-moe serve-gui --host 127.0.0.1 --port 8765
+openclaw-moe detect-single
+openclaw-moe detect-multi
+openclaw-moe visualize-multi
+openclaw-moe install-openclaw-cloud
+openclaw-moe doctor-openclaw-cloud
+openclaw-moe list-ollama-models
+openclaw-moe sync-ollama-models --dry-run
 ```
 
-### Docker (Recommended)
-```dockerfile
-FROM python:3.11-slim
+Compatibility launchers remain available:
 
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-CMD ["python", "scripts/production_agent_orchestrator.py"]
-```
-
-### Cloud Deployment
-- **AWS Lambda**: Async handler for periodic execution
-- **Google Cloud Functions**: Trigger on schedule
-- **Azure Functions**: Event-driven architecture
-
----
-
-## Troubleshooting
-
-### Issue: "No module named 'torch'"
 ```bash
-pip install torch torchvision torchaudio
+python scripts/autonomous_mission.py
+python scripts/integrated_orchestrator.py
 ```
 
-### Issue: "CUDA out of memory"
-```python
-# Use CPU or reduce batch size
-detector = BeyondSOTAAnomalyDetector(..., device='cpu')
+## Validation
+
+Environment report:
+
+```bash
+openclaw-moe doctor
 ```
 
-### Issue: "EVT-POT fitting failed"
-```python
-# Ensure sufficient calibration data (>100 samples)
-detector.fit_threshold(calibration_data)
+Lint and tests:
+
+```bash
+make lint
+make test
+make audit
 ```
 
----
+OpenClaw + Ollama integration report:
 
-## Contributing
-
-Contributions welcome! Areas for improvement:
-
-1. **Playwright Integration**: Implement full headless browser scraping
-2. **On-Chain Data**: Integrate Glassnode API (free tier)
-3. **Real-Time Streaming**: WebSocket support for live data
-4. **Visualization**: Dashboard for monitoring anomalies
-5. **Backtesting**: Historical performance evaluation
-
----
-
-## License
-
-MIT License - See LICENSE file for details
-
----
-
-## Citation
-
-If you use this project in research, please cite:
-
-```bibtex
-@software{openclaw_moe_2026,
-  title={OpenClaw-MoE-Orchestrator: Beyond-SOTA Time Series Anomaly Detection},
-  author={Manus Agent},
-  year={2026},
-  url={https://github.com/skugli37/OpenClaw-MoE-Orchestrator}
-}
+```bash
+openclaw-moe doctor-openclaw-cloud
 ```
 
----
+Seed the local OpenClaw workspace, auth profiles, and overlay config:
 
-## References
+```bash
+openclaw-moe install-openclaw-cloud
+```
 
-1. **PatchTST**: Nie et al., "A Time Series is Worth 64 Words" (ICLR 2023)
-2. **Mamba**: Gu et al., "Mamba: Linear-Time Sequence Modeling" (2023)
-3. **Chronos**: Ansari et al., "Learning the Language of Time Series" (2024)
-4. **TFT**: Lim et al., "Temporal Fusion Transformers" (ICLR 2021)
-5. **EVT**: Embrechts et al., "Extreme Value Theory and Applications" (2013)
+The generated OpenClaw auth profile uses the non-secret marker `ollama-cloud`. The actual Ollama Cloud credential should be configured on the Ollama daemon.
 
----
+Override active role models without editing the committed manifest:
 
-**Last Updated**: 2026-04-11
-**Maintainer**: Manus Agent
-**Status**: ✅ Production-Ready
+```bash
+openclaw-moe install-openclaw-cloud \
+  --reasoning-model qwen3-next:80b-cloud \
+  --reasoning-model gpt-oss:120b-cloud \
+  --coding-model qwen3-coder-next:cloud \
+  --general-model gpt-oss:120b-cloud
+```
+
+Stage Ollama pulls from the committed manifest:
+
+```bash
+openclaw-moe sync-ollama-models --role reasoning --max-models 1 --dry-run
+openclaw-moe sync-ollama-models --role general --max-models 1 --dry-run
+```
+
+Full setup notes live in `docs/openclaw_local_ollama_integration.md`.
+
+## GUI
+
+Launch the built-in control room:
+
+```bash
+openclaw-moe serve-gui --host 127.0.0.1 --port 8765
+```
+
+Then open `http://127.0.0.1:8765`.
+
+The GUI provides:
+
+- one-click execution for `run-mission`, `run-multi-report`, `run-integrated`, and `install-openclaw-cloud`
+- live OpenClaw/Ollama profile status
+- recent run bundles with direct links to generated reports and artifacts
+- model override fields so active role order can be changed without editing repo files
+
+## Locked Dependencies
+
+Committed lock files now define the resolved dependency graph used by local installs, CI, and container builds:
+
+- `requirements/production.lock`
+- `requirements/dev.lock`
+
+## Container
+
+The repository now includes a production-oriented [Dockerfile](/home/kugli/OpenClaw-MoE-Orchestrator/Dockerfile) for containerized packaging of the CLI runtime:
+
+```bash
+docker build -t openclaw-moe-orchestrator .
+docker run --rm openclaw-moe-orchestrator doctor
+```
+
+## Outputs
+
+Single-asset mission writes a run bundle under `artifacts/runs/<run-id>/` plus the latest operator report in `docs/mission_report.md`:
+
+- `data/processed/market_data_norm.csv`
+- `artifacts/runs/<run-id>/inputs/market_data_norm.csv`
+- `artifacts/runs/<run-id>/outputs/anomaly_results.csv`
+- `artifacts/runs/<run-id>/outputs/anomaly_chart.png`
+- `artifacts/runs/<run-id>/outputs/mission_run_metadata.json`
+- `artifacts/runs/<run-id>/outputs/mission_report.md`
+- `docs/mission_report.md`
+
+Integrated orchestrator writes a run bundle under `artifacts/runs/<run-id>/`:
+
+- `data/processed/multi_asset_returns.csv`
+- `artifacts/runs/<run-id>/inputs/multi_asset_returns.csv`
+- `artifacts/runs/<run-id>/outputs/integrated_result.json`
+- `artifacts/runs/<run-id>/outputs/integrated_run_metadata.json`
+
+Multi-asset correlation detector writes a run bundle under `artifacts/runs/<run-id>/` plus the latest operator report in `docs/multi_asset_report.md`:
+
+- `artifacts/runs/<run-id>/inputs/multi_asset_returns.csv`
+- `artifacts/runs/<run-id>/outputs/multi_asset_anomalies.csv`
+- `artifacts/runs/<run-id>/outputs/multi_asset_anomaly_chart.png`
+- `artifacts/runs/<run-id>/outputs/multi_asset_report_metadata.json`
+- `artifacts/runs/<run-id>/outputs/multi_asset_report.md`
+- `docs/multi_asset_report.md`
+
+## CI
+
+GitHub Actions runs:
+
+- lint via `ruff`
+- pytest suite
+- packaging metadata smoke checks
+- secret scanning
+- dependency auditing
+- tag-driven release packaging
+
+Workflow file:
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/security.yml`
+- `.github/workflows/release.yml`
+
+## Notes
+
+- `experiments/` intentionally contains stress harnesses, simulations, and demo training code. Those files are not part of the production path.
+- External context uses real network calls to Google News RSS and returns verifiable headlines instead of invented fallback text.
+- DeepSpeed runtime is adapted at execution time to avoid CPU offload settings that were causing unstable local JIT failures.
