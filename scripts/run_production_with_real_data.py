@@ -5,6 +5,7 @@ Preuzima BTC/ETH/SOL sa Yahoo Finance i detektuje anomalije
 """
 
 import sys
+import os
 import asyncio
 import torch
 import numpy as np
@@ -13,7 +14,8 @@ import yfinance as yf
 import logging
 from datetime import datetime, timedelta
 
-sys.path.insert(0, '/home/ubuntu/OPENCLAW_MOE_PROJECT/scripts')
+# Add current directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from production_agent_orchestrator import ProductionOrchestrator
 from beyond_sota_architecture import BeyondSOTAAnomalyDetector
